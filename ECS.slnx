@@ -1,2 +1,3 @@
 <Solution>
+  <Project Path="ECS.Utils/ECS.Utils.csproj" />
 </Solution>
