@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="ECS.Components/ECS.Components.csproj" />
   <Project Path="ECS.Core/ECS.Core.csproj" />
   <Project Path="ECS.Utils/ECS.Utils.csproj" />
 </Solution>
