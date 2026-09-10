@@ -66,7 +66,9 @@ var rotation = base.Entity!.Children.GetOrNull<Rotation>();
 
 ### `Component`
 
-The base class for all components. Extends `Node` and resolves a reference to the owning `Entity` automatically when it enters the scene tree (via `GetOwner<Entity>()`).
+The base class for all components. Extends `Node`, is marked `[GlobalClass]`, and resolves a reference to the owning `Entity` automatically when it enters the scene tree (via `GetOwner<Entity>()`).
+
+It also tracks the direct children of the owning entity, calling `OnSiblingTracked` / `OnSiblingUntracked` as siblings enter or leave — making inter-component communication straightforward without coupling classes together.
 
 ```csharp
 [GlobalClass]
@@ -77,8 +79,26 @@ public partial class MyComponent : Component
         base._PhysicsProcess(delta);
         GD.Print(base.Entity!.Name);
     }
+
+    protected override void OnSiblingTracked(Node node)
+    {
+        if (node is Velocity velocity)
+            velocity.ValueChanged += OnVelocityChanged;
+    }
+
+    protected override void OnSiblingUntracked(Node node)
+    {
+        if (node is Velocity velocity)
+            velocity.ValueChanged -= OnVelocityChanged;
+    }
 }
 ```
+
+| Member                     | Description                                                   |
+| -------------------------- | ------------------------------------------------------------- |
+| `Entity?`                  | The owning entity; `null` while outside the scene tree.       |
+| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity.     |
+| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity. |
 
 > **Note:** `Entity` is `null` while the component is outside the tree.
 
