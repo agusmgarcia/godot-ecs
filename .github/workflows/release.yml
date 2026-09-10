@@ -5,7 +5,7 @@ permissions: write-all
 on:
   push:
     tags:
-      - "ECS.*@v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 concurrency:
   cancel-in-progress: true
@@ -51,14 +51,12 @@ jobs:
       - name: Parse tag
         id: tag
         run: |
-          PACKAGE_NAME="${GITHUB_REF_NAME%@*}"
-          PACKAGE_VERSION="${GITHUB_REF_NAME#*@v}"
-          echo "name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          PACKAGE_VERSION="${GITHUB_REF_NAME#v}"
           echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
 
       - name: Create NuGet package
         run: >
-          dotnet pack ${{ steps.tag.outputs.name }}/${{ steps.tag.outputs.name }}.csproj
+          dotnet pack
           --configuration Release
           --output ./nupkgs
           /p:Version=${{ steps.tag.outputs.version }}
@@ -70,7 +68,7 @@ jobs:
           --name "GitHubPackages" 
           --username "${{ github.repository_owner }}" 
           --password "${{ secrets.GITHUB_TOKEN }}" 
-          --store-password-in-clear-text-plugin-authorization
+          --store-password-in-clear-text
 
       - name: Push package to GitHub Packages
         run: dotnet nuget push "./nupkgs/*.nupkg" --source "GitHubPackages"
