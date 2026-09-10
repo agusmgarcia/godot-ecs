@@ -304,6 +304,39 @@ SetState() called
                     └─ New type → OnDispose (old) → OnInit (new) → OnUpdate each frame
 ```
 
+### `CollisionShape3D`
+
+ECS-aware wrapper around `Godot.CollisionShape3D`. Use it when a component needs to be a `CollisionShape3D` node and cannot extend `Component` directly. It replicates the full `Component` contract: resolves the owning `Entity` on `_EnterTree` and calls `OnSiblingTracked` / `OnSiblingUntracked` as siblings appear or disappear.
+
+```csharp
+[GlobalClass]
+public partial class PlayerCollider : CollisionShape3D
+{
+    protected override void OnSiblingTracked(Node node)
+    {
+        if (node is Height height)
+            height.ValueChanged += OnHeightChanged;
+    }
+
+    protected override void OnSiblingUntracked(Node node)
+    {
+        if (node is Height height)
+            height.ValueChanged -= OnHeightChanged;
+    }
+
+    private void OnHeightChanged(float h) =>
+        (this.Shape as CapsuleShape3D)!.Height = h;
+}
+```
+
+| Member                     | Description                                                   |
+| -------------------------- | ------------------------------------------------------------- |
+| `Entity?`                  | The owning entity; `null` while outside the scene tree.       |
+| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity.     |
+| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity. |
+
+---
+
 ### `Area3D`
 
 ECS-aware wrapper around `Godot.Area3D`. Use it when a component needs to be an `Area3D` node and cannot extend `Component` directly. It replicates the full `Component` contract: resolves the owning `Entity` on `_EnterTree` and calls `OnSiblingTracked` / `OnSiblingUntracked` as siblings appear or disappear.
