@@ -23,6 +23,11 @@ public sealed class NodesTracker<TNode>
     /// </summary>
     public IReadOnlySet<TNode> Nodes => this._nodes;
 
+    /// <summary>
+    /// When <c>true</c>, only direct children of the root are tracked; no recursion. Defaults to <c>false</c>.
+    /// </summary>
+    public bool DirectChildren { get; init; }
+
     private readonly HashSet<TNode> _nodes = [];
 
     private Node? _root;
@@ -53,14 +58,16 @@ public sealed class NodesTracker<TNode>
             this.NodeTracked?.Invoke(match);
         }
 
-        foreach (var child in node.GetChildren())
-            this.OnChildEnteredTree(child);
+        if (!this.DirectChildren)
+            foreach (var child in node.GetChildren())
+                this.OnChildEnteredTree(child);
     }
 
     private void OnChildExitingTree(Node node)
     {
-        foreach (var child in node.GetChildren())
-            this.OnChildExitingTree(child);
+        if (!this.DirectChildren)
+            foreach (var child in node.GetChildren())
+                this.OnChildExitingTree(child);
 
         if (node != this._root && node is TNode match)
         {

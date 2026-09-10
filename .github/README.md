@@ -363,6 +363,20 @@ tracker.Untrack();
 
 `Track` and `Untrack` must be called in pairs. Calling `Track` again before `Untrack` throws an `InvalidOperationException`.
 
+**`DirectChildren` mode:**
+
+Set `DirectChildren = true` to restrict tracking to the immediate children of the root, skipping deeper descendants entirely.
+
+```csharp
+// Only immediate children of the entity are tracked.
+var tracker = new NodesTracker<Node>() { DirectChildren = true };
+tracker.Track(myEntity);
+```
+
+| Property         | Default | Description                                                              |
+| ---------------- | ------- | ------------------------------------------------------------------------ |
+| `DirectChildren` | `false` | When `true`, only direct children of the root are tracked; no recursion. |
+
 ---
 
 ## Releasing
