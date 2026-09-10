@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using ECS.Utils;
 using Godot;
 
@@ -42,4 +43,24 @@ public abstract partial class Entity : CharacterBody3D
 
         base._ExitTree();
     }
+
+    #region Invisible members
+
+    /// <inheritdoc/>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public new Vector3 Rotation
+    {
+        get => base.Rotation;
+        set => base.Rotation = value;
+    }
+
+    /// <inheritdoc/>
+    [EditorBrowsable(EditorBrowsableState.Never)]
+    public new Vector3 Velocity
+    {
+        get => base.Velocity;
+        set => base.Velocity = value;
+    }
+
+    #endregion
 }
