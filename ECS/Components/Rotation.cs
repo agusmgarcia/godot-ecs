@@ -1,5 +1,4 @@
 using ECS.Core;
-using ECS.Utils;
 using Godot;
 
 namespace ECS.Components;
@@ -22,8 +21,6 @@ public partial class Rotation : Component<Vector3>
     [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:m")]
     public Vector3 Target { get; set; }
 
-    private readonly NodesTracker<Velocity> _velocityTracker = new();
-
     /// <summary>
     /// Initialises the component with zero rotation and a zeroed target.
     /// </summary>
@@ -36,18 +33,17 @@ public partial class Rotation : Component<Vector3>
 
         this.Target = Vector3.Zero;
 
-        this._velocityTracker.NodeTracked += this.OnVelocityTracked;
-        this._velocityTracker.NodeUntracked += this.OnVelocityUntracked;
-        this._velocityTracker.Track(base.Entity!);
-
         base.ValueChanged += this.OnRotationChanged;
         this.OnRotationChanged(Vector3.Zero);
     }
 
-    private void OnVelocityTracked(Velocity velocity)
+    protected override void OnSiblingTracked(Node node)
     {
-        velocity.ValueChanged += this.OnVelocityChanged;
-        this.OnVelocityChanged(velocity.Value);
+        if (node is Velocity velocity)
+        {
+            velocity.ValueChanged += this.OnVelocityChanged;
+            this.OnVelocityChanged(velocity.Value);
+        }
     }
 
     public override void _PhysicsProcess(double delta)
@@ -73,20 +69,19 @@ public partial class Rotation : Component<Vector3>
     private void OnRotationChanged(Vector3 rotation) =>
         base.Entity!.Rotation = rotation;
 
-    private void OnVelocityUntracked(Velocity velocity)
+    protected override void OnSiblingUntracked(Node node)
     {
-        this.OnVelocityChanged(velocity.Value);
-        velocity.ValueChanged -= this.OnVelocityChanged;
+        if (node is Velocity velocity)
+        {
+            this.OnVelocityChanged(velocity.Value);
+            velocity.ValueChanged -= this.OnVelocityChanged;
+        }
     }
 
     public override void _ExitTree()
     {
         this.OnRotationChanged(Vector3.Zero);
         base.ValueChanged -= this.OnRotationChanged;
-
-        this._velocityTracker.Untrack();
-        this._velocityTracker.NodeUntracked -= this.OnVelocityUntracked;
-        this._velocityTracker.NodeTracked -= this.OnVelocityTracked;
 
         this.Target = Vector3.Zero;
 
