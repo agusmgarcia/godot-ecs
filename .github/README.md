@@ -7,7 +7,7 @@ A lightweight Entity Component System (ECS) framework for [Godot 4](https://godo
 ```txt
 ECS/
 ├── Core/        Core ECS abstractions: Entity, Component, and System.
-├── Components/  Ready-to-use components: velocity, rotation, height, and state machine.
+├── Components/  Ready-to-use components: velocity, rotation, height, state machine, animation player, area, and collision shape.
 └── Utils/       Low-level utilities: object pooling, typed sets, and node tracking.
 ```
 
@@ -303,6 +303,37 @@ SetState() called
                     ├─ Same type → update StateParams only
                     └─ New type → OnDispose (old) → OnInit (new) → OnUpdate each frame
 ```
+
+### `AnimationPlayer`
+
+ECS-aware wrapper around `Godot.AnimationPlayer`. Use it when a component needs to be an `AnimationPlayer` node and cannot extend `Component` directly (C# does not allow multiple inheritance). It replicates the full `Component` contract: resolves the owning `Entity` on `_EnterTree` and calls `OnSiblingTracked` / `OnSiblingUntracked` as siblings appear or disappear.
+
+```csharp
+[GlobalClass]
+public partial class PlayerAnimator : AnimationPlayer
+{
+    protected override void OnSiblingTracked(Node node)
+    {
+        if (node is Velocity velocity)
+            velocity.ValueChanged += OnVelocityChanged;
+    }
+
+    protected override void OnSiblingUntracked(Node node)
+    {
+        if (node is Velocity velocity)
+            velocity.ValueChanged -= OnVelocityChanged;
+    }
+
+    private void OnVelocityChanged(Vector3 v) =>
+        this.Play(v != Vector3.Zero ? "run" : "idle");
+}
+```
+
+| Member                     | Description                                                   |
+| -------------------------- | ------------------------------------------------------------- |
+| `Entity?`                  | The owning entity; `null` while outside the scene tree.       |
+| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity.     |
+| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity. |
 
 ---
 
