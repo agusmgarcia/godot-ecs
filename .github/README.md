@@ -304,6 +304,30 @@ SetState() called
                     └─ New type → OnDispose (old) → OnInit (new) → OnUpdate each frame
 ```
 
+### `Area3D`
+
+ECS-aware wrapper around `Godot.Area3D`. Use it when a component needs to be an `Area3D` node and cannot extend `Component` directly. It replicates the full `Component` contract: resolves the owning `Entity` on `_EnterTree` and calls `OnSiblingTracked` / `OnSiblingUntracked` as siblings appear or disappear.
+
+```csharp
+[GlobalClass]
+public partial class HitBox : Area3D
+{
+    protected override void OnSiblingTracked(Node node)
+    {
+        if (node is Health health)
+            this.BodyEntered += _ => health.TakeDamage(10f);
+    }
+}
+```
+
+| Member                     | Description                                                   |
+| -------------------------- | ------------------------------------------------------------- |
+| `Entity?`                  | The owning entity; `null` while outside the scene tree.       |
+| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity.     |
+| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity. |
+
+---
+
 ### `AnimationPlayer`
 
 ECS-aware wrapper around `Godot.AnimationPlayer`. Use it when a component needs to be an `AnimationPlayer` node and cannot extend `Component` directly (C# does not allow multiple inheritance). It replicates the full `Component` contract: resolves the owning `Entity` on `_EnterTree` and calls `OnSiblingTracked` / `OnSiblingUntracked` as siblings appear or disappear.
