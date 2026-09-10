@@ -27,6 +27,7 @@ public partial class Rotation : Component<Vector3>
     public Rotation()
         : base(Vector3.Zero) { }
 
+    /// <inheritdoc/>
     public override void _EnterTree()
     {
         base._EnterTree();
@@ -37,6 +38,7 @@ public partial class Rotation : Component<Vector3>
         this.OnRotationChanged(Vector3.Zero);
     }
 
+    /// <inheritdoc/>
     protected override void OnSiblingTracked(Node node)
     {
         if (node is Velocity velocity)
@@ -46,6 +48,7 @@ public partial class Rotation : Component<Vector3>
         }
     }
 
+    /// <inheritdoc/>
     public override void _PhysicsProcess(double delta)
     {
         base._PhysicsProcess(delta);
@@ -69,6 +72,7 @@ public partial class Rotation : Component<Vector3>
     private void OnRotationChanged(Vector3 rotation) =>
         base.Entity!.Rotation = rotation;
 
+    /// <inheritdoc/>
     protected override void OnSiblingUntracked(Node node)
     {
         if (node is Velocity velocity)
@@ -78,6 +82,7 @@ public partial class Rotation : Component<Vector3>
         }
     }
 
+    /// <inheritdoc/>
     public override void _ExitTree()
     {
         this.OnRotationChanged(Vector3.Zero);

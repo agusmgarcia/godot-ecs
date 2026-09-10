@@ -183,8 +183,9 @@ C# does not support multiple inheritance, so nodes that must extend a specific G
 These rules apply to every public and protected member. Do **not** document private or internal members.
 
 1. Every public/protected member gets an XML `<summary>` doc comment.
-2. The description **must fit on a single line** — never wrap across multiple `///` lines.
-3. Use `<see cref="..."/>` for types/members, `<typeparamref name="..."/>` for type parameters, `<paramref name="..."/>` for method parameters, and `<c>...</c>` for literals (`null`, `true`, `false`).
+2. Use `/// <inheritdoc/>` on `override` members and explicit interface implementations — never repeat or paraphrase the base class or interface documentation.
+3. The description **must fit on a single line** — never wrap across multiple `///` lines.
+4. Use `<see cref="..."/>` for types/members, `<typeparamref name="..."/>` for type parameters, `<paramref name="..."/>` for method parameters, and `<c>...</c>` for literals (`null`, `true`, `false`).
 
 **Correct:**
 
@@ -330,6 +331,18 @@ public partial class PlayerStateMachine : StatesMachine<Player>
 - No dependency on `ECS.Core` or `ECS.Components`.
 - Use `sealed` unless subclassing is the explicit design intent.
 - Pool instances with `ElementsPool` when the class has no meaningful constructor parameters and is allocated frequently.
+
+---
+
+## Validation
+
+After completing any task, run the following command and confirm it exits with zero errors before considering the task done:
+
+```sh
+dotnet build
+```
+
+A successful build prints `Build succeeded.` with `0 Error(s)`. If there are any errors or warnings (warnings are treated as errors via `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>`), fix them before finishing.
 
 ---
 

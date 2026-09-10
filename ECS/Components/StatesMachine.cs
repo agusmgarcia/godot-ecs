@@ -17,6 +17,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
     protected StatesMachine()
         : base(null) { }
 
+    /// <inheritdoc/>
     public override void _EnterTree()
     {
         base._EnterTree();
@@ -52,6 +53,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
         this._newStates.Enqueue((state, force));
     }
 
+    /// <inheritdoc/>
     public override void _PhysicsProcess(double delta)
     {
         base._PhysicsProcess(delta);
@@ -95,6 +97,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
         ElementsPool.Set(state);
     }
 
+    /// <inheritdoc/>
     public override void _ExitTree()
     {
         if (this.Value != null)

@@ -17,6 +17,7 @@ public abstract partial class Entity : CharacterBody3D
     private readonly TypedSet<Node> _children = [];
     private readonly NodesTracker<Node> _childrenTracker = new();
 
+    /// <inheritdoc/>
     public override void _EnterTree()
     {
         base._EnterTree();
@@ -32,6 +33,7 @@ public abstract partial class Entity : CharacterBody3D
     private void OnChildUntracked(Node child) =>
         this._children.Remove(child);
 
+    /// <inheritdoc/>
     public override void _ExitTree()
     {
         this._childrenTracker.Untrack();

@@ -17,6 +17,7 @@ public partial class System : Node
 
     private readonly NodesTracker<Entity> _entitiesTracker = new();
 
+    /// <inheritdoc/>
     public override void _EnterTree()
     {
         base._EnterTree();
@@ -36,6 +37,7 @@ public partial class System : Node
     /// </summary>
     protected virtual void OnEntityUntracked(Entity entity) { }
 
+    /// <inheritdoc/>
     public override void _ExitTree()
     {
         this._entitiesTracker.Untrack();

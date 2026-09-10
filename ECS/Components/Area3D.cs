@@ -17,6 +17,7 @@ public partial class Area3D : Godot.Area3D
 
     private readonly NodesTracker<Node> _childrenTracker = new() { DirectChildren = true };
 
+    /// <inheritdoc/>
     public override void _EnterTree()
     {
         base._EnterTree();
@@ -38,6 +39,7 @@ public partial class Area3D : Godot.Area3D
     /// </summary>
     protected virtual void OnSiblingUntracked(Node node) { }
 
+    /// <inheritdoc/>
     public override void _ExitTree()
     {
         this._childrenTracker.Untrack();

@@ -10,9 +10,11 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
     private static readonly Dictionary<Type, ICollection> _EMPTY_SETS = [];
     private static readonly object?[] _ARGS = [1];
 
+    /// <inheritdoc/>
     public int Count =>
        this._root.Count;
 
+    /// <inheritdoc/>
     public bool IsReadOnly =>
         ((ISet<TElement>)this._root).IsReadOnly;
 
@@ -25,6 +27,7 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
     public TypedSet() =>
         this._root = (HashSet<TElement>)(this._elements[typeof(TElement)] = (ICollection)ElementsPool.GetOrCreate<HashSet<TElement>>());
 
+    /// <inheritdoc/>
     public bool Add(TElement item)
     {
         var result = false;
@@ -44,6 +47,7 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
         return result;
     }
 
+    /// <inheritdoc/>
     public IReadOnlySet<TDerivedElement> GetAll<TDerivedElement>()
         where TDerivedElement : TElement
     {
@@ -56,14 +60,17 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
         return (IReadOnlySet<TDerivedElement>)this._elements.GetValueOrDefault(typeof(TDerivedElement), emptySet);
     }
 
+    /// <inheritdoc/>
     public TDerivedElement? GetOrNull<TDerivedElement>()
         where TDerivedElement : TElement =>
             this.GetAll<TDerivedElement>().SingleOrDefault();
 
+    /// <inheritdoc/>
     public TDerivedElement Get<TDerivedElement>()
         where TDerivedElement : TElement =>
             this.GetAll<TDerivedElement>().Single();
 
+    /// <inheritdoc/>
     public bool Remove(TElement item)
     {
         var result = false;
@@ -86,6 +93,7 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
         return result;
     }
 
+    /// <inheritdoc/>
     public void Clear()
     {
         foreach (var type in this._elements.Keys.ToList())
@@ -104,60 +112,72 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
     void ICollection<TElement>.Add(TElement item) =>
         this.Add(item);
 
+    /// <inheritdoc/>
     public bool Contains(TElement item) =>
         this._root.Contains(item);
 
+    /// <inheritdoc/>
     public void CopyTo(TElement[] array, int arrayIndex) =>
         this._root.CopyTo(array, arrayIndex);
 
+    /// <inheritdoc/>
     public void UnionWith(IEnumerable<TElement> other)
     {
         this._root.UnionWith(other);
         this.RebuildDerivedSets();
     }
 
+    /// <inheritdoc/>
     public void IntersectWith(IEnumerable<TElement> other)
     {
         this._root.IntersectWith(other);
         this.RebuildDerivedSets();
     }
 
+    /// <inheritdoc/>
     public void ExceptWith(IEnumerable<TElement> other)
     {
         this._root.ExceptWith(other);
         this.RebuildDerivedSets();
     }
 
+    /// <inheritdoc/>
     public void SymmetricExceptWith(IEnumerable<TElement> other)
     {
         this._root.SymmetricExceptWith(other);
         this.RebuildDerivedSets();
     }
 
+    /// <inheritdoc/>
     public bool IsSubsetOf(IEnumerable<TElement> other) =>
         this._root.IsSubsetOf(other);
 
+    /// <inheritdoc/>
     public bool IsSupersetOf(IEnumerable<TElement> other) =>
         this._root.IsSupersetOf(other);
 
+    /// <inheritdoc/>
     public bool IsProperSubsetOf(IEnumerable<TElement> other) =>
         this._root.IsProperSubsetOf(other);
 
+    /// <inheritdoc/>
     public bool IsProperSupersetOf(IEnumerable<TElement> other) =>
         this._root.IsProperSupersetOf(other);
 
+    /// <inheritdoc/>
     public bool SetEquals(IEnumerable<TElement> other) =>
         this._root.SetEquals(other);
 
+    /// <inheritdoc/>
     public bool Overlaps(IEnumerable<TElement> other) =>
         this._root.Overlaps(other);
 
+    /// <inheritdoc/>
     public IEnumerator<TElement> GetEnumerator() =>
         this._root.GetEnumerator();
 
     IEnumerator IEnumerable.GetEnumerator() =>
         this._root.GetEnumerator();
-
 
     private void RebuildDerivedSets()
     {

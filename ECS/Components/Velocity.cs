@@ -39,6 +39,7 @@ public partial class Velocity : Component<Vector3>
     private float _speed;
     private float _pendingSpeedDelta;
 
+    /// <inheritdoc/>
     public override void _EnterTree()
     {
         base._EnterTree();
@@ -66,6 +67,7 @@ public partial class Velocity : Component<Vector3>
     public void Decelerate(float deceleration) =>
         this._pendingSpeedDelta = -deceleration;
 
+    /// <inheritdoc/>
     public override void _PhysicsProcess(double delta)
     {
         base._PhysicsProcess(delta);
@@ -91,6 +93,7 @@ public partial class Velocity : Component<Vector3>
         base.Entity.MoveAndSlide();
     }
 
+    /// <inheritdoc/>
     public override void _ExitTree()
     {
         this.OnVelocityChanged(Vector3.Zero);
