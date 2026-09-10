@@ -5,6 +5,7 @@
     <Company>ECS</Company>
     <Description>A lightweight Entity Component System (ECS) framework for Godot 4 — core abstractions (Entity, Component, System), low-level utilities (object pooling, typed sets, node tracking), and ready-to-use components (velocity, rotation, height, state machine).</Description>
     <EnableDynamicLoading>true</EnableDynamicLoading>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
