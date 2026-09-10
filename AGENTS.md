@@ -301,6 +301,8 @@ public partial class MyWrapper : Godot.MyNode
 
 States are nested `abstract class` types inside the concrete state machine. Use `BaseState` for stateless states and `BaseState<TStateParams>` when data must be passed on transition. `TStateParams` must be a `struct`.
 
+States have the same sibling-tracking capability as `Component`: override `OnSiblingTracked` / `OnSiblingUntracked` to subscribe/unsubscribe to sibling events without tight coupling. The tracker is set up inside the base `OnInit()` and torn down inside the base `OnDispose()` — always call `base.OnInit()` first and `base.OnDispose()` last when overriding those methods.
+
 ```csharp
 public partial class PlayerStateMachine : StatesMachine<Player>
 {
@@ -314,10 +316,35 @@ public partial class PlayerStateMachine : StatesMachine<Player>
     {
         public struct Params { }
 
-        protected override void OnInit() { /* ... */ }
+        protected override void OnInit()
+        {
+            base.OnInit(); // sets up sibling tracking — always first
+            // subscribe to events, initialise state…
+        }
+
+        protected override void OnSiblingTracked(Node node)
+        {
+            if (node is Velocity velocity)
+                velocity.ValueChanged += this.OnVelocityChanged;
+        }
+
+        protected override void OnSiblingUntracked(Node node)
+        {
+            if (node is Velocity velocity)
+                velocity.ValueChanged -= this.OnVelocityChanged;
+        }
+
         protected override void OnUpdate(double delta) { /* ... */ }
-        protected override void OnDispose() { /* ... */ }
+
+        protected override void OnDispose()
+        {
+            // unsubscribe from events, clean up state…
+            base.OnDispose(); // tears down sibling tracking — always last
+        }
+
         protected override bool ReadyToTransition() => true;
+
+        private void OnVelocityChanged(Vector3 v) { /* ... */ }
     }
 }
 ```

@@ -267,19 +267,58 @@ public partial class PlayerStateMachine : StatesMachine<Player>
 
 **Defining a state:**
 
+States have access to the same sibling-tracking hooks as `Component`. `OnSiblingTracked` and `OnSiblingUntracked` are called automatically when siblings enter or leave the owning entity while the state is active.
+
+> **Important:** Always call `base.OnInit()` first and `base.OnDispose()` last when overriding those methods, so the built-in sibling tracker is set up and torn down correctly.
+
 ```csharp
 public class IdleState : StatesMachine<Player>.BaseState<IdleState.Params>
 {
     public struct Params { /* transition data */ }
 
-    protected override void OnInit()  { /* called once on entry */ }
+    protected override void OnInit()
+    {
+        base.OnInit(); // sets up sibling tracking
+        // subscribe to other events, initialise state…
+    }
+
+    protected override void OnSiblingTracked(Node node)
+    {
+        if (node is Velocity velocity)
+            velocity.ValueChanged += OnVelocityChanged;
+    }
+
+    protected override void OnSiblingUntracked(Node node)
+    {
+        if (node is Velocity velocity)
+            velocity.ValueChanged -= OnVelocityChanged;
+    }
+
     protected override void OnUpdate(double delta) { /* called every frame */ }
-    protected override void OnDispose() { /* called once on exit */ }
+
+    protected override void OnDispose()
+    {
+        // unsubscribe from other events, clean up state…
+        base.OnDispose(); // tears down sibling tracking
+    }
 
     // Return false to block non-forced transitions away from this state.
     protected override bool ReadyToTransition() => true;
+
+    private void OnVelocityChanged(Vector3 v) { /* … */ }
 }
 ```
+
+| Member                     | Description                                                                                          |
+| -------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `Entity`                   | The entity this state is currently operating on.                                                     |
+| `StateParams`              | Parameters supplied by the last `SetState` call (`BaseState<TStateParams>` only).                    |
+| `OnInit()`                 | Called once when this state becomes active. Call `base.OnInit()` first to set up sibling tracking.   |
+| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity while this state is active.                 |
+| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity while this state is active.             |
+| `OnUpdate(double)`         | Called every physics frame while this state is active.                                               |
+| `OnDispose()`              | Called once when this state is replaced. Call `base.OnDispose()` last to tear down sibling tracking. |
+| `ReadyToTransition()`      | Returns `false` to block non-forced transitions away from this state.                                |
 
 **Transitioning:**
 

@@ -1,5 +1,6 @@
 using ECS.Utils;
 using ECS.Core;
+using Godot;
 
 namespace ECS.Components;
 
@@ -127,10 +128,22 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
         /// </summary>
         public TEntity Entity { get; internal set; } = null!;
 
+        private readonly NodesTracker<Node> _childrenTracker = new() { DirectChildren = true };
+
         /// <summary>
         /// Called once when this state becomes the active state.
         /// </summary>
-        internal protected virtual void OnInit() { }
+        internal protected virtual void OnInit()
+        {
+            this._childrenTracker.NodeTracked += this.OnSiblingTracked;
+            this._childrenTracker.NodeUntracked += this.OnSiblingUntracked;
+            this._childrenTracker.Track(this.Entity);
+        }
+
+        /// <summary>
+        /// Called when a sibling node is added to the owning <see cref="Entity"/>.
+        /// </summary>
+        protected virtual void OnSiblingTracked(Node node) { }
 
         /// <summary>
         /// Called every physics frame while this state is active.
@@ -138,16 +151,26 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
         internal protected virtual void OnUpdate(double delta) { }
 
         /// <summary>
-        /// Called once when this state is replaced by another state.
-        /// </summary>
-        internal protected virtual void OnDispose() { }
-
-        /// <summary>
         /// Returns <c>false</c> to block non-forced transitions away from this state.
         /// </summary>
         internal protected virtual bool ReadyToTransition() => true;
 
         internal virtual void CopyParamsFrom(BaseState source) { }
+
+        /// <summary>
+        /// Called when a sibling node is removed from the owning <see cref="Entity"/>.
+        /// </summary>
+        protected virtual void OnSiblingUntracked(Node node) { }
+
+        /// <summary>
+        /// Called once when this state is replaced by another state.
+        /// </summary>
+        internal protected virtual void OnDispose()
+        {
+            this._childrenTracker.Untrack();
+            this._childrenTracker.NodeUntracked -= this.OnSiblingUntracked;
+            this._childrenTracker.NodeTracked -= this.OnSiblingTracked;
+        }
     }
 
     /// <summary>
