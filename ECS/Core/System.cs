@@ -7,6 +7,7 @@ namespace ECS.Core;
 /// Base class for all systems; automatically tracks every <see cref="Entity"/> in the scene tree.
 /// </summary>
 [GlobalClass]
+[HideInheritedMembers("_PhysicsProcess", "_EnterTree", "_ExitTree", "Name")]
 public partial class System : Node
 {
     /// <summary>

@@ -1,4 +1,3 @@
-using System.ComponentModel;
 using ECS.Utils;
 using Godot;
 
@@ -7,6 +6,7 @@ namespace ECS.Core;
 /// <summary>
 /// Base class for all game entities; extends <see cref="Godot.CharacterBody3D"/> and exposes a live typed set of its child nodes.
 /// </summary>
+[HideInheritedMembers("_PhysicsProcess", "_EnterTree", "_ExitTree", "Name")]
 public abstract partial class Entity : CharacterBody3D
 {
     /// <summary>
@@ -43,24 +43,4 @@ public abstract partial class Entity : CharacterBody3D
 
         base._ExitTree();
     }
-
-    #region Invisible members
-
-    /// <inheritdoc/>
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public new Vector3 Rotation
-    {
-        get => base.Rotation;
-        set => base.Rotation = value;
-    }
-
-    /// <inheritdoc/>
-    [EditorBrowsable(EditorBrowsableState.Never)]
-    public new Vector3 Velocity
-    {
-        get => base.Velocity;
-        set => base.Velocity = value;
-    }
-
-    #endregion
 }

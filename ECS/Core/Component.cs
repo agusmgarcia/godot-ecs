@@ -7,6 +7,7 @@ namespace ECS.Core;
 /// Base class for all components; resolves a reference to the owning <see cref="Entity"/> when it enters the scene tree.
 /// </summary>
 [GlobalClass]
+[HideInheritedMembers("_PhysicsProcess", "_EnterTree", "_ExitTree", "Name")]
 public partial class Component : Node
 {
     /// <summary>

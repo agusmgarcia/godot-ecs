@@ -25,4 +25,11 @@
     <None Include="../.github/README.md" Pack="true" PackagePath="/" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference 
+      Include="../ECS.Generators/ECS.Generators.csproj"
+      OutputItemType="Analyzer"
+      ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
 </Project>

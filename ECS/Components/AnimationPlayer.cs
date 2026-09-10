@@ -1,6 +1,6 @@
-using Godot;
 using ECS.Core;
 using ECS.Utils;
+using Godot;
 
 namespace ECS.Components;
 
@@ -8,6 +8,7 @@ namespace ECS.Components;
 /// ECS-aware wrapper around <see cref="Godot.AnimationPlayer"/> that resolves the owning <see cref="Entity"/> and tracks sibling nodes.
 /// </summary>
 [GlobalClass]
+[HideInheritedMembers("_PhysicsProcess", "_EnterTree", "_ExitTree", "Name")]
 public partial class AnimationPlayer : Godot.AnimationPlayer
 {
     /// <summary>
