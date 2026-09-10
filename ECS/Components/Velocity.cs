@@ -40,9 +40,9 @@ public partial class Velocity : Component<Vector3>
     private float _pendingSpeedDelta;
 
     /// <inheritdoc/>
-    public override void _EnterTree()
+    protected override void OnInit()
     {
-        base._EnterTree();
+        base.OnInit();
 
         this._direction = Vector3.Zero;
         this._speed = 0;
@@ -68,9 +68,9 @@ public partial class Velocity : Component<Vector3>
         this._pendingSpeedDelta = -deceleration;
 
     /// <inheritdoc/>
-    public override void _PhysicsProcess(double delta)
+    protected override void OnUpdate(double delta)
     {
-        base._PhysicsProcess(delta);
+        base.OnUpdate(delta);
 
         this._speed += this._pendingSpeedDelta * (float)delta;
         this._speed = Mathf.Clamp(this._speed, 0f, this.MaxSpeed);
@@ -94,7 +94,7 @@ public partial class Velocity : Component<Vector3>
     }
 
     /// <inheritdoc/>
-    public override void _ExitTree()
+    protected override void OnDispose()
     {
         this.OnVelocityChanged(Vector3.Zero);
         base.ValueChanged -= this.OnVelocityChanged;
@@ -103,6 +103,6 @@ public partial class Velocity : Component<Vector3>
         this._speed = 0;
         this._direction = Vector3.Zero;
 
-        base._ExitTree();
+        base.OnDispose();
     }
 }

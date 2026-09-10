@@ -7,7 +7,7 @@ namespace ECS.Core;
 /// Base class for all systems; automatically tracks every <see cref="Entity"/> in the scene tree.
 /// </summary>
 [GlobalClass]
-[HideInheritedMembers("_PhysicsProcess", "_EnterTree", "_ExitTree", "Name")]
+[HideInheritedMembers("Name")]
 public partial class System : Node
 {
     /// <summary>
@@ -18,11 +18,11 @@ public partial class System : Node
 
     private readonly NodesTracker<Entity> _entitiesTracker = new();
 
-    /// <inheritdoc/>
-    public override void _EnterTree()
+    /// <summary>
+    /// Called once after the system enters the scene tree and internal state is ready.
+    /// </summary>
+    protected virtual void OnInit()
     {
-        base._EnterTree();
-
         this._entitiesTracker.NodeTracked += this.OnEntityTracked;
         this._entitiesTracker.NodeUntracked += this.OnEntityUntracked;
         this._entitiesTracker.Track(base.GetTree().Root);
@@ -38,13 +38,13 @@ public partial class System : Node
     /// </summary>
     protected virtual void OnEntityUntracked(Entity entity) { }
 
-    /// <inheritdoc/>
-    public override void _ExitTree()
+    /// <summary>
+    /// Called once before the system exits the scene tree and internal state is torn down.
+    /// </summary>
+    protected virtual void OnDispose()
     {
         this._entitiesTracker.Untrack();
         this._entitiesTracker.NodeUntracked -= this.OnEntityUntracked;
         this._entitiesTracker.NodeTracked -= this.OnEntityTracked;
-
-        base._ExitTree();
     }
 }

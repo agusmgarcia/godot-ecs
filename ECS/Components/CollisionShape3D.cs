@@ -8,7 +8,7 @@ namespace ECS.Components;
 /// ECS-aware wrapper around <see cref="Godot.CollisionShape3D"/> that resolves the owning <see cref="Entity"/> and tracks sibling nodes.
 /// </summary>
 [GlobalClass]
-[HideInheritedMembers("_PhysicsProcess", "_EnterTree", "_ExitTree", "Name")]
+[HideInheritedMembers("Name")]
 public partial class CollisionShape3D : Godot.CollisionShape3D
 {
     /// <summary>
@@ -18,11 +18,11 @@ public partial class CollisionShape3D : Godot.CollisionShape3D
 
     private readonly NodesTracker<Node> _childrenTracker = new() { DirectChildren = true };
 
-    /// <inheritdoc/>
-    public override void _EnterTree()
+    /// <summary>
+    /// Called once after the component enters the scene tree and internal state is ready.
+    /// </summary>
+    protected virtual void OnInit()
     {
-        base._EnterTree();
-
         this.Entity = base.GetOwner<Entity>();
 
         this._childrenTracker.NodeTracked += this.OnSiblingTracked;
@@ -40,15 +40,15 @@ public partial class CollisionShape3D : Godot.CollisionShape3D
     /// </summary>
     protected virtual void OnSiblingUntracked(Node node) { }
 
-    /// <inheritdoc/>
-    public override void _ExitTree()
+    /// <summary>
+    /// Called once before the component exits the scene tree and internal state is torn down.
+    /// </summary>
+    protected virtual void OnDispose()
     {
         this._childrenTracker.Untrack();
         this._childrenTracker.NodeUntracked -= this.OnSiblingUntracked;
         this._childrenTracker.NodeTracked -= this.OnSiblingTracked;
 
         this.Entity = null;
-
-        base._ExitTree();
     }
 }

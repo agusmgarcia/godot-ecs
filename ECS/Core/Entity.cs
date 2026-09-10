@@ -6,7 +6,7 @@ namespace ECS.Core;
 /// <summary>
 /// Base class for all game entities; extends <see cref="Godot.CharacterBody3D"/> and exposes a live typed set of its child nodes.
 /// </summary>
-[HideInheritedMembers("_PhysicsProcess", "_EnterTree", "_ExitTree", "Name")]
+[HideInheritedMembers("Name")]
 public abstract partial class Entity : CharacterBody3D
 {
     /// <summary>
@@ -18,11 +18,11 @@ public abstract partial class Entity : CharacterBody3D
     private readonly TypedSet<Node> _children = [];
     private readonly NodesTracker<Node> _childrenTracker = new();
 
-    /// <inheritdoc/>
-    public override void _EnterTree()
+    /// <summary>
+    /// Called once after the entity enters the scene tree and internal state is ready.
+    /// </summary>
+    protected virtual void OnInit()
     {
-        base._EnterTree();
-
         this._childrenTracker.NodeTracked += this.OnChildTracked;
         this._childrenTracker.NodeUntracked += this.OnChildUntracked;
         this._childrenTracker.Track(this);
@@ -34,13 +34,13 @@ public abstract partial class Entity : CharacterBody3D
     private void OnChildUntracked(Node child) =>
         this._children.Remove(child);
 
-    /// <inheritdoc/>
-    public override void _ExitTree()
+    /// <summary>
+    /// Called once before the entity exits the scene tree and internal state is torn down.
+    /// </summary>
+    protected virtual void OnDispose()
     {
         this._childrenTracker.Untrack();
         this._childrenTracker.NodeUntracked -= this.OnChildUntracked;
         this._childrenTracker.NodeTracked -= this.OnChildTracked;
-
-        base._ExitTree();
     }
 }

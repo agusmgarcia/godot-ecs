@@ -28,9 +28,9 @@ public partial class Rotation : Component<Vector3>
         : base(Vector3.Zero) { }
 
     /// <inheritdoc/>
-    public override void _EnterTree()
+    protected override void OnInit()
     {
-        base._EnterTree();
+        base.OnInit();
 
         this.Target = Vector3.Zero;
 
@@ -49,9 +49,9 @@ public partial class Rotation : Component<Vector3>
     }
 
     /// <inheritdoc/>
-    public override void _PhysicsProcess(double delta)
+    protected override void OnUpdate(double delta)
     {
-        base._PhysicsProcess(delta);
+        base.OnUpdate(delta);
 
         var direction = this.Target - base.Entity!.GlobalPosition;
 
@@ -83,13 +83,13 @@ public partial class Rotation : Component<Vector3>
     }
 
     /// <inheritdoc/>
-    public override void _ExitTree()
+    protected override void OnDispose()
     {
         this.OnRotationChanged(Vector3.Zero);
         base.ValueChanged -= this.OnRotationChanged;
 
         this.Target = Vector3.Zero;
 
-        base._ExitTree();
+        base.OnDispose();
     }
 }

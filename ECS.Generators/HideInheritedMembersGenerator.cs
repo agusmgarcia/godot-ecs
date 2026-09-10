@@ -8,8 +8,11 @@ namespace ECS.Generators;
 
 /// <summary>
 /// Emits <c>HideInheritedMembersAttribute</c> and, for every class annotated
-/// with it, a <c>partial</c> class that shadows inherited public members with
-/// <c>[EditorBrowsable(Never)]</c> overloads.
+/// with it, a <c>partial</c> class that seals inherited virtual members and
+/// shadows non-virtual ones with <c>[EditorBrowsable(Never)]</c> overloads.
+/// <c>_EnterTree</c>, <c>_PhysicsProcess</c>, and <c>_ExitTree</c> additionally
+/// call <c>OnInit</c>, <c>OnUpdate</c>, and <c>OnDispose</c> hooks which are
+/// generated as empty <c>protected virtual</c> methods when absent.
 /// </summary>
 [Generator]
 public sealed partial class HideInheritedMembersGenerator : IIncrementalGenerator
@@ -76,8 +79,17 @@ public sealed partial class HideInheritedMembersGenerator : IIncrementalGenerato
             return;
 
         var whitelist = GetWhitelist(classSymbol, AttributeFqn);
-        var toHide    = CollectMembersToHide(classSymbol, whitelist);
-        if (toHide.Count == 0)
+        var ownNames  = GetOwnNames(classSymbol);
+        var toHide    = CollectMembersToHide(classSymbol, whitelist, ownNames);
+
+        // Determine which lifecycle hooks are missing from the class (need to be generated).
+        var missingHooks = new List<string>();
+        foreach (var hook in new[] { "OnInit", "OnUpdate", "OnDispose" })
+            if (!ownNames.Contains(hook))
+                missingHooks.Add(hook);
+
+        // Nothing to emit at all — skip file creation.
+        if (toHide.Count == 0 && missingHooks.Count == 0)
             return;
 
         var sb = new StringBuilder();
@@ -99,23 +111,64 @@ public sealed partial class HideInheritedMembersGenerator : IIncrementalGenerato
 
         sb.AppendLine($"    partial class {classSymbol.Name}{typeParams}");
         sb.AppendLine("    {");
-        sb.AppendLine("        #region Hidden inherited members");
-        sb.AppendLine();
 
-        foreach (var member in toHide)
-            EmitMember(sb, member);
+        // --- Hidden / sealed members region ---
+        if (toHide.Count > 0)
+        {
+            sb.AppendLine("        #region Hidden inherited members");
+            sb.AppendLine();
+            foreach (var mth in toHide)
+                EmitMember(sb, mth);
+            sb.AppendLine("        #endregion");
+        }
 
-        sb.AppendLine("        #endregion");
+        // --- Generated lifecycle hooks (only those absent from the hand-written class) ---
+        if (missingHooks.Count > 0)
+        {
+            if (toHide.Count > 0) sb.AppendLine();
+            sb.AppendLine("        #region Generated lifecycle hooks");
+            sb.AppendLine();
+            foreach (var hook in missingHooks)
+                EmitHook(sb, hook);
+            sb.AppendLine("        #endregion");
+        }
+
         sb.AppendLine("    }");
         if (ns is not null) sb.AppendLine("}");
 
         var hintName =
             classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
                        .Replace("global::", "")
-                       .Replace('<', '[')
-                       .Replace('>', ']')
+                       .Replace("<", "[")
+                       .Replace(">", "]")
             + ".HideInheritedMembers.g.cs";
 
         spc.AddSource(hintName, SourceText.From(sb.ToString(), Encoding.UTF8));
+    }
+
+    private static void EmitHook(StringBuilder sb, string hookName)
+    {
+        switch (hookName)
+        {
+            case "OnInit":
+                sb.AppendLine("        /// <summary>");
+                sb.AppendLine("        /// Called once after the node enters the scene tree and internal state is ready.");
+                sb.AppendLine("        /// </summary>");
+                sb.AppendLine("        protected virtual void OnInit() { }");
+                break;
+            case "OnUpdate":
+                sb.AppendLine("        /// <summary>");
+                sb.AppendLine("        /// Called every physics frame while the node is in the scene tree.");
+                sb.AppendLine("        /// </summary>");
+                sb.AppendLine("        protected virtual void OnUpdate(double delta) { }");
+                break;
+            case "OnDispose":
+                sb.AppendLine("        /// <summary>");
+                sb.AppendLine("        /// Called once before the node exits the scene tree and internal state is torn down.");
+                sb.AppendLine("        /// </summary>");
+                sb.AppendLine("        protected virtual void OnDispose() { }");
+                break;
+        }
+        sb.AppendLine();
     }
 }

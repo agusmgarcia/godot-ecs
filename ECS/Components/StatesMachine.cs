@@ -19,9 +19,9 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
         : base(null) { }
 
     /// <inheritdoc/>
-    public override void _EnterTree()
+    protected override void OnInit()
     {
-        base._EnterTree();
+        base.OnInit();
 
         foreach (var (newState, _) in this._newStates)
         {
@@ -55,9 +55,9 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
     }
 
     /// <inheritdoc/>
-    public override void _PhysicsProcess(double delta)
+    protected override void OnUpdate(double delta)
     {
-        base._PhysicsProcess(delta);
+        base.OnUpdate(delta);
 
         while (this._newStates.TryDequeue(out var item))
         {
@@ -99,7 +99,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
     }
 
     /// <inheritdoc/>
-    public override void _ExitTree()
+    protected override void OnDispose()
     {
         if (this.Value != null)
         {
@@ -115,7 +115,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
 
         this._newStates.Clear();
 
-        base._ExitTree();
+        base.OnDispose();
     }
 
     /// <summary>

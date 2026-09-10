@@ -9,26 +9,41 @@ public sealed partial class HideInheritedMembersGenerator
     private static readonly SymbolDisplayFormat _fqf =
         SymbolDisplayFormat.FullyQualifiedFormat;
 
-    private static void EmitMember(StringBuilder sb, ISymbol member)
+    // Godot lifecycle methods that receive special treatment: instead of a
+    // plain forwarding body, they also call the corresponding ECS hook.
+    private static readonly Dictionary<string, string> _lifecycleHooks =
+        new(StringComparer.Ordinal)
+        {
+            ["_EnterTree"]      = "OnInit",
+            ["_PhysicsProcess"] = "OnUpdate",
+            ["_ExitTree"]       = "OnDispose",
+        };
+
+    private static void EmitMember(StringBuilder sb, MemberToHide mth)
     {
         sb.AppendLine("        /// <inheritdoc/>");
         sb.AppendLine("        [EditorBrowsable(EditorBrowsableState.Never)]");
 
-        switch (member)
+        switch (mth.Symbol)
         {
-            case IPropertySymbol prop when prop.IsIndexer: EmitIndexer(sb, prop);  break;
-            case IPropertySymbol prop:                     EmitProperty(sb, prop); break;
-            case IMethodSymbol method:                     EmitMethod(sb, method); break;
-            case IEventSymbol evt:                         EmitEvent(sb, evt);     break;
+            case IPropertySymbol prop when prop.IsIndexer:
+                EmitIndexer(sb, prop, mth.IsVirtualOrOverride); break;
+            case IPropertySymbol prop:
+                EmitProperty(sb, prop, mth.IsVirtualOrOverride); break;
+            case IMethodSymbol method:
+                EmitMethod(sb, method, mth.IsVirtualOrOverride); break;
+            case IEventSymbol evt:
+                EmitEvent(sb, evt, mth.IsVirtualOrOverride); break;
         }
 
         sb.AppendLine();
     }
 
-    private static void EmitProperty(StringBuilder sb, IPropertySymbol prop)
+    private static void EmitProperty(StringBuilder sb, IPropertySymbol prop, bool isVirtual)
     {
-        var type = prop.Type.ToDisplayString(_fqf);
-        sb.AppendLine($"        public new {type} {prop.Name}");
+        var type    = prop.Type.ToDisplayString(_fqf);
+        var keyword = isVirtual ? "sealed override" : "new";
+        sb.AppendLine($"        public {keyword} {type} {prop.Name}");
         sb.AppendLine("        {");
         if (!prop.IsWriteOnly)
             sb.AppendLine($"            get => base.{prop.Name};");
@@ -37,12 +52,13 @@ public sealed partial class HideInheritedMembersGenerator
         sb.AppendLine("        }");
     }
 
-    private static void EmitIndexer(StringBuilder sb, IPropertySymbol prop)
+    private static void EmitIndexer(StringBuilder sb, IPropertySymbol prop, bool isVirtual)
     {
         var type      = prop.Type.ToDisplayString(_fqf);
         var paramList = BuildParamList(prop.Parameters);
         var argList   = BuildArgList(prop.Parameters);
-        sb.AppendLine($"        public new {type} this[{paramList}]");
+        var keyword   = isVirtual ? "sealed override" : "new";
+        sb.AppendLine($"        public {keyword} {type} this[{paramList}]");
         sb.AppendLine("        {");
         if (!prop.IsWriteOnly)
             sb.AppendLine($"            get => base[{argList}];");
@@ -51,7 +67,7 @@ public sealed partial class HideInheritedMembersGenerator
         sb.AppendLine("        }");
     }
 
-    private static void EmitMethod(StringBuilder sb, IMethodSymbol method)
+    private static void EmitMethod(StringBuilder sb, IMethodSymbol method, bool isVirtual)
     {
         var ret         = method.ReturnType.ToDisplayString(_fqf);
         var tpDecl      = method.TypeParameters.Length > 0
@@ -60,7 +76,15 @@ public sealed partial class HideInheritedMembersGenerator
         var paramList   = BuildParamList(method.Parameters);
         var argList     = BuildArgList(method.Parameters);
         var constraints = BuildConstraints(method.TypeParameters);
-        var sig         = $"        public new {ret} {method.Name}{tpDecl}({paramList}){constraints}";
+        var keyword     = isVirtual ? "sealed override" : "new";
+        var sig         = $"        public {keyword} {ret} {method.Name}{tpDecl}({paramList}){constraints}";
+
+        // Special lifecycle methods get an extra hook call in their body.
+        if (isVirtual && _lifecycleHooks.TryGetValue(method.Name, out var hookName))
+        {
+            EmitLifecycleMethod(sb, sig, method, argList, hookName);
+            return;
+        }
 
         if (method.ReturnsVoid)
         {
@@ -76,17 +100,47 @@ public sealed partial class HideInheritedMembersGenerator
         }
     }
 
-    private static void EmitEvent(StringBuilder sb, IEventSymbol evt)
+    // _EnterTree  : base first, then OnInit()
+    // _PhysicsProcess: base first, then OnUpdate(delta)
+    // _ExitTree   : OnDispose() first, then base
+    private static void EmitLifecycleMethod(
+        StringBuilder sb,
+        string sig,
+        IMethodSymbol method,
+        string argList,
+        string hookName)
     {
-        var type = evt.Type.ToDisplayString(_fqf);
-        sb.AppendLine($"        public new event {type} {evt.Name}");
+        sb.AppendLine(sig);
+        sb.AppendLine("        {");
+
+        if (method.Name == "_ExitTree")
+        {
+            sb.AppendLine($"            this.{hookName}();");
+            sb.AppendLine($"            base.{method.Name}({argList});");
+        }
+        else
+        {
+            // _EnterTree and _PhysicsProcess: base call comes first.
+            var hookArgs = hookName == "OnUpdate" ? argList : string.Empty;
+            sb.AppendLine($"            base.{method.Name}({argList});");
+            sb.AppendLine($"            this.{hookName}({hookArgs});");
+        }
+
+        sb.AppendLine("        }");
+    }
+
+    private static void EmitEvent(StringBuilder sb, IEventSymbol evt, bool isVirtual)
+    {
+        var type    = evt.Type.ToDisplayString(_fqf);
+        var keyword = isVirtual ? "sealed override" : "new";
+        sb.AppendLine($"        public {keyword} event {type} {evt.Name}");
         sb.AppendLine("        {");
         sb.AppendLine($"            add    => base.{evt.Name} += value;");
         sb.AppendLine($"            remove => base.{evt.Name} -= value;");
         sb.AppendLine("        }");
     }
 
-    // C# reserved keywords that Godot uses as parameter names and must be escaped with @.
+    // C# reserved keywords that Godot uses as parameter names.
     private static readonly HashSet<string> _csharpKeywords = new(StringComparer.Ordinal)
     {
         "abstract", "as", "base", "bool", "break", "byte", "case", "catch", "char",
@@ -155,24 +209,13 @@ public sealed partial class HideInheritedMembersGenerator
 
     private static string RenderDefault(IParameterSymbol p)
     {
-        // The explicit default value is stored as null both when the default IS null
-        // and when the default is the zero-value of a value-type (e.g. default(StringName)).
-        // For non-nullable reference types, null would be invalid — emit "default!" instead.
         if (p.ExplicitDefaultValue is null)
-        {
-            // In a #nullable enable context, `default` for a non-nullable reference type
-            // produces CS8625. Godot assemblies use NullableAnnotation.None (oblivious)
-            // for many ref-type params, so we conservatively emit `default!` for every
-            // reference type to avoid the diagnostic regardless of annotation.
             return p.Type.IsReferenceType ? "default!" : "default";
-        }
 
         if (p.ExplicitDefaultValue is bool b)   return b ? "true" : "false";
-        if (p.ExplicitDefaultValue is string s) return $"\"{s}\"";
-        if (p.ExplicitDefaultValue is char c)   return $"'{c}'";
+        if (p.ExplicitDefaultValue is string s) return "\"" + s + "\"";
+        if (p.ExplicitDefaultValue is char c)   return "'" + c + "'";
 
-        // Use invariant culture so float/double defaults are rendered with '.' not ','.
-        // Append 'f' suffix for float and 'd' for double so the literal type matches.
         if (p.ExplicitDefaultValue is float fv)
             return fv.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f";
         if (p.ExplicitDefaultValue is double dv)

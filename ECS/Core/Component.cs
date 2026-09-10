@@ -7,7 +7,7 @@ namespace ECS.Core;
 /// Base class for all components; resolves a reference to the owning <see cref="Entity"/> when it enters the scene tree.
 /// </summary>
 [GlobalClass]
-[HideInheritedMembers("_PhysicsProcess", "_EnterTree", "_ExitTree", "Name")]
+[HideInheritedMembers("Name")]
 public partial class Component : Node
 {
     /// <summary>
@@ -17,11 +17,11 @@ public partial class Component : Node
 
     private readonly NodesTracker<Node> _childrenTracker = new() { DirectChildren = true };
 
-    /// <inheritdoc/>
-    public override void _EnterTree()
+    /// <summary>
+    /// Called once after the component enters the scene tree and internal state is ready.
+    /// </summary>
+    protected virtual void OnInit()
     {
-        base._EnterTree();
-
         this.Entity = base.GetOwner<Entity>();
 
         this._childrenTracker.NodeTracked += this.OnSiblingTracked;
@@ -39,15 +39,15 @@ public partial class Component : Node
     /// </summary>
     protected virtual void OnSiblingUntracked(Node node) { }
 
-    /// <inheritdoc/>
-    public override void _ExitTree()
+    /// <summary>
+    /// Called once before the component exits the scene tree and internal state is torn down.
+    /// </summary>
+    protected virtual void OnDispose()
     {
         this._childrenTracker.Untrack();
         this._childrenTracker.NodeUntracked -= this.OnSiblingUntracked;
         this._childrenTracker.NodeTracked -= this.OnSiblingTracked;
 
         this.Entity = null;
-
-        base._ExitTree();
     }
 }

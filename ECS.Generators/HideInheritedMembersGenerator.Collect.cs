@@ -4,6 +4,12 @@ namespace ECS.Generators;
 
 public sealed partial class HideInheritedMembersGenerator
 {
+    private readonly struct MemberToHide(ISymbol symbol, bool isVirtualOrOverride)
+    {
+        public ISymbol Symbol { get; } = symbol;
+        public bool IsVirtualOrOverride { get; } = isVirtualOrOverride;
+    }
+
     private static HashSet<string> GetWhitelist(INamedTypeSymbol classSymbol, string attrFqn)
     {
         foreach (var attr in classSymbol.GetAttributes())
@@ -30,18 +36,17 @@ public sealed partial class HideInheritedMembersGenerator
         return new HashSet<string>(StringComparer.Ordinal);
     }
 
-    private static List<ISymbol> CollectMembersToHide(
-        INamedTypeSymbol classSymbol,
-        HashSet<string> whitelist)
-    {
-        // Names already declared directly on the annotated class — never shadow these.
-        var ownNames = new HashSet<string>(
-            classSymbol.GetMembers().Select(m => m.Name),
-            StringComparer.Ordinal);
+    private static HashSet<string> GetOwnNames(INamedTypeSymbol classSymbol) =>
+        new(classSymbol.GetMembers().Select(m => m.Name), StringComparer.Ordinal);
 
-        // Signature keys we've already enqueued (to avoid duplicating across hierarchy levels).
-        var seen   = new HashSet<string>(StringComparer.Ordinal);
-        var result = new List<ISymbol>();
+    private static List<MemberToHide> CollectMembersToHide(
+        INamedTypeSymbol classSymbol,
+        HashSet<string> whitelist,
+        HashSet<string> ownNames)
+    {
+        // Signature keys we have already enqueued (avoid duplicates across hierarchy levels).
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<MemberToHide>();
 
         var current = classSymbol.BaseType;
         while (current is not null
@@ -53,8 +58,6 @@ public sealed partial class HideInheritedMembersGenerator
                 if (member.DeclaredAccessibility != Accessibility.Public) continue;
                 if (member.IsStatic) continue;
 
-                // For methods: skip non-ordinary kinds (constructors, operators, etc.)
-                // and skip property/event accessors (handled via property/event symbols).
                 if (member is IMethodSymbol method)
                 {
                     if (method.MethodKind != MethodKind.Ordinary) continue;
@@ -64,14 +67,22 @@ public sealed partial class HideInheritedMembersGenerator
                 if (member is not IPropertySymbol and not IMethodSymbol and not IEventSymbol)
                     continue;
 
-                if (IsObsolete(member))              continue;
+                if (IsObsolete(member)) continue;
                 if (whitelist.Contains(member.Name)) continue;
-                if (ownNames.Contains(member.Name))  continue;
+                if (ownNames.Contains(member.Name)) continue;
 
                 var key = BuildKey(member);
                 if (!seen.Add(key)) continue;
 
-                result.Add(member);
+                var isVirtual = member switch
+                {
+                    IMethodSymbol m => m.IsVirtual || m.IsOverride || m.IsAbstract,
+                    IPropertySymbol p => p.IsVirtual || p.IsOverride || p.IsAbstract,
+                    IEventSymbol e => e.IsVirtual || e.IsOverride || e.IsAbstract,
+                    _ => false,
+                };
+
+                result.Add(new MemberToHide(member, isVirtual));
             }
 
             current = current.BaseType;
@@ -88,7 +99,7 @@ public sealed partial class HideInheritedMembersGenerator
     {
         if (member is IMethodSymbol m)
         {
-            var pts    = string.Join(",", m.Parameters.Select(p =>
+            var pts = string.Join(",", m.Parameters.Select(p =>
                 p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)));
             var tpSuffix = m.TypeParameters.Length > 0 ? "`" + m.TypeParameters.Length : "";
             return $"M:{m.Name}{tpSuffix}({pts})";
