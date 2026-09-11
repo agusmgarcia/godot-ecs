@@ -17,10 +17,26 @@ public partial class Rotation : Component<Vector3>
     public float AngularSpeed { get; protected set; }
 
     /// <summary>
-    /// World-space position the entity will rotate to face.
+    /// // TODO: document this.
     /// </summary>
-    [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:m")]
-    public Vector3 Target { get; set; }
+    public Vector3 Right =>
+        (base.Entity as Node3D)?.Basis.X ?? Vector3.Right;
+
+    /// <summary>
+    /// // TODO: document this.
+    /// </summary>
+    public Vector3 Up =>
+        (base.Entity as Node3D)?.Basis.Y ?? Vector3.Up;
+
+    /// <summary>
+    /// // TODO: document this.
+    /// </summary>
+    public Vector3 Forward =>
+        (base.Entity as Node3D)?.Basis.Z ?? Vector3.Forward;
+
+    private Position? _position;
+    private Velocity? _velocity;
+    private Vector3 _target;
 
     /// <summary>
     /// Initialises the component with zero rotation and a zeroed target.
@@ -33,10 +49,12 @@ public partial class Rotation : Component<Vector3>
     {
         base.OnInit();
 
-        this.Target = Vector3.Zero;
+        this._position = null;
+        this._velocity = null;
+        this._target = Vector3.Zero;
 
         base.ValueChanged += this.OnRotationChanged;
-        this.OnRotationChanged(Vector3.Zero);
+        this.OnRotationChanged((base.Entity as Node3D)?.Rotation ?? Vector3.Zero);
     }
 
     /// <inheritdoc/>
@@ -44,13 +62,19 @@ public partial class Rotation : Component<Vector3>
     {
         base.OnSiblingTracked(component);
 
-        if (component is Velocity velocity)
+        if (component is Velocity velocity && this._velocity == null)
         {
-            velocity.ValueChanged += this.OnVelocityChanged;
-            this.OnVelocityChanged(velocity.Value);
+            this._velocity = velocity;
+            this._velocity.ValueChanged += this.OnVelocityChanged;
+            this.OnVelocityChanged(this._velocity.Value);
         }
 
-        // TODO: we could track position component, so we don't have to access it everytime.
+        if (component is Position position && this._position == null)
+        {
+            this._position = position;
+            this._position.ValueChanged += this.OnPositionChanged;
+            this.OnPositionChanged(this._position.Value);
+        }
     }
 
     /// <inheritdoc/>
@@ -58,9 +82,7 @@ public partial class Rotation : Component<Vector3>
     {
         base.OnUpdate(delta);
 
-        // TODO: instead of casting the entity, do base.Entity.Components.GetOrNull<Position>();
-        var node = (Node3D)base.Entity!;
-        var direction = this.Target - node.GlobalPosition;
+        var direction = this._target - (this._position?.Value ?? Vector3.Zero);
 
         var targetPitch = Mathf.Atan2(-direction.Y, new Vector2(direction.X, direction.Z).Length());
         var targetYaw = Mathf.Atan2(direction.X, direction.Z);
@@ -73,27 +95,30 @@ public partial class Rotation : Component<Vector3>
             Mathf.LerpAngle(base.Value.Z, targetRoll, weight));
     }
 
-    private void OnVelocityChanged(Vector3 velocity)
-    {
-        // TODO: instead of casting the entity, do base.Entity.Components.GetOrNull<Position>();
-        // TODO: instead of casting the entity, do this.Orientation.Z;
-        // TODO: make casting optional.
-        var node = (Node3D)base.Entity!;
-        this.Target = node.GlobalPosition + velocity + node.GlobalBasis.Z;
-    }
+    private void OnPositionChanged(Vector3 position) =>
+        this._target = position + (this._velocity?.Value ?? Vector3.Zero) + this.Forward;
+
+    private void OnVelocityChanged(Vector3 velocity) =>
+        this._target = (this._position?.Value ?? Vector3.Zero) + velocity + this.Forward;
 
     private void OnRotationChanged(Vector3 rotation) =>
-        ((Node3D)base.Entity!).Rotation = rotation;
+        (base.Entity as Node3D)?.Rotation = rotation;
 
     /// <inheritdoc/>
     protected override void OnSiblingUntracked(IComponent component)
     {
-        // TODO: we could untrack position component, so we don't have to access it everytime.
-
-        if (component is Velocity velocity)
+        if (component is Position position && this._position == position)
         {
-            this.OnVelocityChanged(velocity.Value);
-            velocity.ValueChanged -= this.OnVelocityChanged;
+            this.OnPositionChanged(this._position.Value);
+            this._position.ValueChanged -= this.OnPositionChanged;
+            this._position = null;
+        }
+
+        if (component is Velocity velocity && this._velocity == velocity)
+        {
+            this.OnVelocityChanged(this._velocity.Value);
+            this._velocity.ValueChanged -= this.OnVelocityChanged;
+            this._velocity = null;
         }
 
         base.OnSiblingUntracked(component);
@@ -102,10 +127,12 @@ public partial class Rotation : Component<Vector3>
     /// <inheritdoc/>
     protected override void OnDispose()
     {
-        this.OnRotationChanged(Vector3.Zero);
+        this.OnRotationChanged((base.Entity as Node3D)?.Rotation ?? Vector3.Zero);
         base.ValueChanged -= this.OnRotationChanged;
 
-        this.Target = Vector3.Zero;
+        this._target = Vector3.Zero;
+        this._velocity = null;
+        this._position = null;
 
         base.OnDispose();
     }
