@@ -1,3 +1,4 @@
+using ECS.Interfaces;
 using Godot;
 
 namespace ECS.Utils;
@@ -6,7 +7,7 @@ namespace ECS.Utils;
 /// Watches a Godot node subtree and maintains a live set of descendant nodes of type <typeparamref name="TNode"/>.
 /// </summary>
 public sealed class NodesTracker<TNode>
-    where TNode : Node
+    where TNode : INode
 {
     /// <summary>
     /// Raised when a node of type <typeparamref name="TNode"/> enters the tracked subtree.

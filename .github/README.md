@@ -1,17 +1,19 @@
 # godot-ecs
 
-A lightweight Entity Component System (ECS) framework for [Godot 4](https://godotengine.org/) built in C#. A single NuGet package with three logical layers: low-level utilities, core abstractions, and ready-to-use components.
+A lightweight Entity Component System (ECS) framework for [Godot 4](https://godotengine.org/) built in C#. A single NuGet package with Roslyn source generators that eliminate boilerplate.
 
 ## Architecture
 
 ```txt
 ECS/
-├── Core/        Core ECS abstractions: Entity, Component, and System.
-├── Components/  Ready-to-use components: velocity, rotation, height, state machine, animation player, area, and collision shape.
-└── Utils/       Low-level utilities: object pooling, typed sets, and node tracking.
+├── Interfaces/  Role marker interfaces: IEntity, IComponent, ISystem.
+├── Core/        Base classes: Entity, Component, System.
+├── Components/  Ready-to-use components: velocity, rotation, height, state machine, animation player, collision shape.
+├── Entities/    Ready-to-use entity variants: CharacterBody3D, Area3D.
+└── Utils/       Low-level utilities: object pooling, typed sets, node tracking.
 ```
 
-Each layer only depends on the layer above it: `Components` → `Core` → `Utils`.
+Each layer only depends on the layers above it: `Components`/`Entities` → `Core` → `Interfaces` → `Utils`.
 
 ## Getting Started
 
@@ -25,8 +27,8 @@ The typical scene setup looks like this:
 
 ```txt
 MyScene
-├── MySystem          (extends System)
-└── MyEntity          (extends Entity)
+├── MySystem          (implements ISystem)
+└── MyEntity          (implements IEntity)
     ├── Main          (marker component)
     ├── Velocity      (physics velocity)
     ├── Rotation      (look-at rotation)
@@ -35,78 +37,108 @@ MyScene
 
 ---
 
+## Interfaces
+
+The framework is driven by three marker interfaces. Implementing them on any Godot `Node` subclass triggers source generators that produce all the necessary boilerplate at compile time.
+
+### `IEntity`
+
+Marker interface for entities. Exposes:
+
+| Member       | Type                            | Description                                |
+| ------------ | ------------------------------- | ------------------------------------------ |
+| `Components` | `IReadonlyTypedSet<IComponent>` | Live typed set of direct child components. |
+| `Children`   | `IReadOnlySet<IEntity>`         | Live set of direct child entities.         |
+| `Parent`     | `IEntity?`                      | The parent entity, or `null`.              |
+
+Entity is a pure container — it has no lifecycle hooks (`OnInit`/`OnUpdate`/`OnDispose`).
+
+### `IComponent`
+
+Marker interface for components. The generator produces:
+
+- `Entity` property (`IEntity?`) — the owning entity.
+- `Siblings` property (`IReadonlyTypedSet<IComponent>`) — live set of sibling components.
+- Lifecycle hooks: `OnInit()`, `OnUpdate(double delta)`, `OnDispose()`.
+- Sibling hooks: `OnSiblingTracked(IComponent)`, `OnSiblingUntracked(IComponent)`.
+
+### `ISystem`
+
+Marker interface for systems. The generator produces:
+
+- `Entities` property (`IReadonlyTypedSet<IEntity>`) — live set of all entities in the scene tree.
+- Lifecycle hooks: `OnInit()`, `OnUpdate(double delta)`, `OnDispose()`.
+- Entity hooks: `OnEntityTracked(IEntity)`, `OnEntityUntracked(IEntity)`.
+
+---
+
 ## Core
 
-Core ECS abstractions for Godot 4. Provides the three fundamental building blocks — `Entity`, `Component`, and `System` — as Godot `Node` subclasses so they integrate naturally with the scene tree.
+Ready-to-use base classes that combine a Godot `Node` with the appropriate interface.
 
 ### `Entity`
 
-The base class for all game entities. Extends `CharacterBody3D`, so every entity is a 3D physics body.
-
-Exposes a `Children` property — a live `IReadonlyTypedSet<Node>` of all descendant nodes — so components attached to the entity can be looked up efficiently by type at runtime.
+Base class for entities. Extends `Node` and implements `IEntity`.
 
 ```csharp
 [GlobalClass]
 public partial class Player : Entity { }
 ```
 
-```txt
-Player  (Entity)
-├── Velocity
-├── Rotation
-└── PlayerStateMachine
-```
+All boilerplate (`Components`, `Children`, `Parent`, trackers) is generated. Access components via:
 
 ```csharp
-// Look up a sibling component from within another component.
-var rotation = base.Entity!.Children.GetOrNull<Rotation>();
+// Look up a component from within another component.
+var velocity = base.Entity!.Components.GetOrNull<Velocity>();
 ```
-
----
 
 ### `Component`
 
-The base class for all components. Extends `Node`, is marked `[GlobalClass]`, and resolves a reference to the owning `Entity` automatically when it enters the scene tree (via `GetOwner<Entity>()`).
-
-It also tracks the direct children of the owning entity, calling `OnSiblingTracked` / `OnSiblingUntracked` as siblings enter or leave — making inter-component communication straightforward without coupling classes together.
+Base class for all components. Extends `Node` and implements `IComponent`.
 
 ```csharp
 [GlobalClass]
 public partial class MyComponent : Component
 {
-    public override void _PhysicsProcess(double delta)
+    protected override void OnUpdate(double delta)
     {
-        base._PhysicsProcess(delta);
+        base.OnUpdate(delta);
         GD.Print(base.Entity!.Name);
     }
 
-    protected override void OnSiblingTracked(Node node)
+    protected override void OnSiblingTracked(IComponent component)
     {
-        if (node is Velocity velocity)
-            velocity.ValueChanged += OnVelocityChanged;
+        base.OnSiblingTracked(component);
+        if (component is Velocity velocity)
+            velocity.ValueChanged += this.OnVelocityChanged;
     }
 
-    protected override void OnSiblingUntracked(Node node)
+    protected override void OnSiblingUntracked(IComponent component)
     {
-        if (node is Velocity velocity)
-            velocity.ValueChanged -= OnVelocityChanged;
+        if (component is Velocity velocity)
+            velocity.ValueChanged -= this.OnVelocityChanged;
+        base.OnSiblingUntracked(component);
     }
+
+    private void OnVelocityChanged(Vector3 v) { /* ... */ }
 }
 ```
 
-| Member                     | Description                                                   |
-| -------------------------- | ------------------------------------------------------------- |
-| `Entity?`                  | The owning entity; `null` while outside the scene tree.       |
-| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity.     |
-| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity. |
+| Member                           | Description                                                  |
+| -------------------------------- | ------------------------------------------------------------ |
+| `Entity?`                        | The owning entity; `null` while outside the scene tree.      |
+| `Siblings`                       | Live typed set of sibling components on the same entity.     |
+| `OnInit()`                       | Called once after entering the scene tree (after setup).     |
+| `OnUpdate(double)`               | Called every physics frame.                                  |
+| `OnDispose()`                    | Called once before exiting the scene tree (before teardown). |
+| `OnSiblingTracked(IComponent)`   | Called when a sibling component is added.                    |
+| `OnSiblingUntracked(IComponent)` | Called when a sibling component is removed.                  |
 
-> **Note:** `Entity` is `null` while the component is outside the tree.
-
----
+> **Note:** `Entity` is `null` outside the scene tree. Inside lifecycle hooks it is guaranteed non-null — use `base.Entity!`.
 
 ### `Component<TValue>`
 
-A typed component that wraps a single value. The value is settable by subclasses and fires a `ValueChanged` event only when the value actually changes (checked via `EqualityComparer<TValue>`).
+A component that wraps a single value. Fires a `ValueChanged` event when the value changes.
 
 ```csharp
 [GlobalClass]
@@ -114,415 +146,256 @@ public partial class Speed : Component<float>
 {
     public Speed() : base(0f) { }
 
-    public override void _EnterTree()
+    protected override void OnInit()
     {
-        base._EnterTree();
-        base.ValueChanged += OnSpeedChanged;
+        base.OnInit();
+        base.Value = 10f;
     }
-
-    private void OnSpeedChanged(float speed) =>
-        GD.Print($"Speed changed to {speed}");
 }
 ```
 
-| Member                               | Description                                              |
-| ------------------------------------ | -------------------------------------------------------- |
-| `TValue Value`                       | The current value. Read publicly, written by subclasses. |
-| `event Action<TValue>? ValueChanged` | Fired when `Value` is assigned a different value.        |
-
----
+| Member         | Description                                                      |
+| -------------- | ---------------------------------------------------------------- |
+| `Value`        | The current value. Fires `ValueChanged` when set to a new value. |
+| `ValueChanged` | Event raised when the value changes.                             |
 
 ### `System`
 
-The base class for all systems. Extends `Node` and automatically tracks every `Entity` present anywhere in the scene tree, maintaining a live `Entities` set. Override `OnEntityTracked` and `OnEntityUntracked` to react as entities appear or disappear.
+Base class for all systems. Extends `Node` and implements `ISystem`.
 
 ```csharp
 [GlobalClass]
-public partial class GravitySystem : System
+public partial class MovementSystem : System
 {
-    protected override void OnEntityTracked(Entity entity)
+    protected override void OnEntityTracked(IEntity entity)
     {
-        // React when a new entity enters the scene.
+        base.OnEntityTracked(entity);
+        GD.Print($"Entity entered: {entity.Name}");
     }
 
-    public override void _PhysicsProcess(double delta)
+    protected override void OnUpdate(double delta)
     {
-        base._PhysicsProcess(delta);
-
+        base.OnUpdate(delta);
         foreach (var entity in base.Entities)
         {
-            // Process every entity each frame.
+            var velocity = entity.Components.GetOrNull<Velocity>();
+            // process...
         }
     }
 }
 ```
 
-| Member                          | Description                                           |
-| ------------------------------- | ----------------------------------------------------- |
-| `IReadOnlySet<Entity> Entities` | Live set of all entities currently in the scene tree. |
-| `OnEntityTracked(Entity)`       | Called when an entity enters the scene tree.          |
-| `OnEntityUntracked(Entity)`     | Called when an entity exits the scene tree.           |
+| Member                       | Description                                       |
+| ---------------------------- | ------------------------------------------------- |
+| `Entities`                   | Live typed set of all entities in the scene tree. |
+| `OnInit()`                   | Called once after entering the scene tree.        |
+| `OnUpdate(double)`           | Called every physics frame.                       |
+| `OnDispose()`                | Called once before exiting the scene tree.        |
+| `OnEntityTracked(IEntity)`   | Called when an entity enters the scene tree.      |
+| `OnEntityUntracked(IEntity)` | Called when an entity exits the scene tree.       |
+
+---
+
+## Entity variants (`Entities/`)
+
+Ready-to-use entity implementations based on specific Godot node types. Implement `IEntity` — all boilerplate is generated.
+
+| Class             | Extends                 |
+| ----------------- | ----------------------- |
+| `CharacterBody3D` | `Godot.CharacterBody3D` |
+| `Area3D`          | `Godot.Area3D`          |
+
+```csharp
+// Add your own entity variant:
+[GlobalClass]
+[HideInheritedMembers("Name")]
+public partial class RigidBody3D : Godot.RigidBody3D, IEntity
+{
+    string INode.Name => base.Name;
+}
+```
 
 ---
 
 ## Components
 
-Ready-to-use `Component` implementations that cover the most common 3D game entity behaviours. All components are marked `[GlobalClass]` and are available directly from the Godot editor.
-
 ### `Main`
 
-A marker component with no behaviour. Attach it to an entity to tag it as the "main" or primary entity of a given scene, which allows `System` subclasses to distinguish it from other entities by type.
-
-```csharp
-var main = entity.Children.GetOrNull<Main>();
-```
-
----
-
-### `Velocity`
-
-Handles 3D physics velocity for a `CharacterBody3D` entity. Integrates gravity, air friction, and a configurable max speed. Automatically notifies a sibling `Rotation` component of the new look-at target whenever the velocity changes.
-
-**Exported properties (configurable in the editor):**
-
-| Property      | Default         | Description                                             |
-| ------------- | --------------- | ------------------------------------------------------- |
-| `Gravity`     | Project setting | Downward acceleration (m/s²) applied when airborne.     |
-| `AirFriction` | Project setting | Horizontal speed loss per second while airborne (m/s²). |
-| `MaxSpeed`    | `0`             | Maximum horizontal speed (m/s).                         |
-
-**API:**
-
-```csharp
-// Apply an acceleration impulse in a direction this frame.
-velocity.Accelerate(direction: Vector3.Forward, acceleration: 20f);
-
-// Apply a deceleration impulse this frame.
-velocity.Decelerate(deceleration: 10f);
-```
-
-Both `Accelerate` and `Decelerate` are additive within a single physics frame and are consumed (reset to zero) at the start of the next `_PhysicsProcess`.
-
----
-
-### `Rotation`
-
-Smoothly rotates the entity to face a world-space `Target` position, updating all three Euler axes (pitch, yaw, roll) each physics frame using `LerpAngle`.
-
-**Exported properties:**
-
-| Property       | Default | Description                           |
-| -------------- | ------- | ------------------------------------- |
-| `AngularSpeed` | `0`     | Rotation speed in degrees per second. |
-
-**API:**
-
-```csharp
-// Point the entity at a world-space position.
-rotation.Target = somePosition;
-```
-
-The component computes the direction vector from the entity's current `GlobalPosition` to `Target`, then derives:
-
-- **Yaw (Y):** `Atan2(direction.X, direction.Z)`
-- **Pitch (X):** `Atan2(-direction.Y, horizontalLength)`
-- **Roll (Z):** always lerps to `0` (entity stays upright)
-
-The `Velocity` component sets `Rotation.Target` automatically to face the direction of travel.
-
----
+Marker component used to tag an entity as the primary entity of its scene.
 
 ### `Height`
 
-Stores the entity's height as a single `float` value (in metres). Exposes the value as an editable export in the Godot inspector.
+Component that stores the entity’s height in metres as an inspector-editable value.
 
-**Exported properties:**
+### `Velocity`
 
-| Property | Default | Description       |
-| -------- | ------- | ----------------- |
-| `Value`  | `0`     | Height in metres. |
+Component that drives 3D physics velocity, applying gravity, air friction, and a max speed limit.
 
-```csharp
-float h = entity.Children.Get<Height>().Value;
-```
+| Member         | Description                     |
+| -------------- | ------------------------------- |
+| `Gravity`      | Downward acceleration (m/s²).   |
+| `AirFriction`  | Horizontal speed loss (m/s²).   |
+| `MaxSpeed`     | Maximum horizontal speed (m/s). |
+| `Accelerate()` | Apply an acceleration impulse.  |
+| `Decelerate()` | Apply a deceleration impulse.   |
 
----
+> Casts `Entity` to `CharacterBody3D` internally to call Godot physics methods.
+
+### `Rotation`
+
+Component that smoothly rotates the entity to face a world-space target position each physics frame.
+
+| Member         | Description                   |
+| -------------- | ----------------------------- |
+| `AngularSpeed` | Rotation speed (°/s).         |
+| `Target`       | World-space position to face. |
+
+> Casts `Entity` to `Node3D` internally to read/write `GlobalPosition` and `Rotation`.
 
 ### `StatesMachine<TEntity>`
 
-A generic finite state machine component. States are pooled (`ElementsPool`) to avoid per-frame allocations. State transitions are queued and processed at the start of each `_PhysicsProcess`.
-
-**Defining a state machine:**
+Generic finite state machine component that pools states and processes queued transitions each physics frame.
 
 ```csharp
 public partial class PlayerStateMachine : StatesMachine<Player>
 {
-    public override void _EnterTree()
-    {
-        base._EnterTree();
-        this.SetState<IdleState, IdleState.Params>(new IdleState.Params());
-    }
-}
-```
-
-**Defining a state:**
-
-States have access to the same sibling-tracking hooks as `Component`. `OnSiblingTracked` and `OnSiblingUntracked` are called automatically when siblings enter or leave the owning entity while the state is active.
-
-> **Important:** Always call `base.OnInit()` first and `base.OnDispose()` last when overriding those methods, so the built-in sibling tracker is set up and torn down correctly.
-
-```csharp
-public class IdleState : StatesMachine<Player>.BaseState<IdleState.Params>
-{
-    public struct Params { /* transition data */ }
-
     protected override void OnInit()
     {
-        base.OnInit(); // sets up sibling tracking
-        // subscribe to other events, initialise state…
+        base.OnInit();
+        this.SetState<IdleState, IdleState.Params>(new IdleState.Params());
     }
 
-    protected override void OnSiblingTracked(Node node)
+    public sealed class IdleState : BaseState<IdleState.Params>
     {
-        if (node is Velocity velocity)
-            velocity.ValueChanged += OnVelocityChanged;
-    }
+        public struct Params { }
 
-    protected override void OnSiblingUntracked(Node node)
-    {
-        if (node is Velocity velocity)
-            velocity.ValueChanged -= OnVelocityChanged;
-    }
+        protected override void OnInit()
+        {
+            base.OnInit();
+            // subscribe to events...
+        }
 
-    protected override void OnUpdate(double delta) { /* called every frame */ }
+        protected override void OnSiblingTracked(IComponent component)
+        {
+            if (component is Velocity velocity)
+                velocity.ValueChanged += this.OnVelocityChanged;
+        }
 
-    protected override void OnDispose()
-    {
-        // unsubscribe from other events, clean up state…
-        base.OnDispose(); // tears down sibling tracking
-    }
+        protected override void OnSiblingUntracked(IComponent component)
+        {
+            if (component is Velocity velocity)
+                velocity.ValueChanged -= this.OnVelocityChanged;
+        }
 
-    // Return false to block non-forced transitions away from this state.
-    protected override bool ReadyToTransition() => true;
+        protected override void OnUpdate(double delta) { /* ... */ }
 
-    private void OnVelocityChanged(Vector3 v) { /* … */ }
-}
-```
+        protected override void OnDispose()
+        {
+            // clean up...
+            base.OnDispose();
+        }
 
-| Member                     | Description                                                                                          |
-| -------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `Entity`                   | The entity this state is currently operating on.                                                     |
-| `StateParams`              | Parameters supplied by the last `SetState` call (`BaseState<TStateParams>` only).                    |
-| `OnInit()`                 | Called once when this state becomes active. Call `base.OnInit()` first to set up sibling tracking.   |
-| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity while this state is active.                 |
-| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity while this state is active.             |
-| `OnUpdate(double)`         | Called every physics frame while this state is active.                                               |
-| `OnDispose()`              | Called once when this state is replaced. Call `base.OnDispose()` last to tear down sibling tracking. |
-| `ReadyToTransition()`      | Returns `false` to block non-forced transitions away from this state.                                |
+        protected override bool ReadyToTransition() => true;
 
-**Transitioning:**
-
-```csharp
-// Request a transition (blocked if the current state returns false from ReadyToTransition).
-this.SetState<RunState, RunState.Params>(new RunState.Params { ... });
-
-// Force a transition regardless of ReadyToTransition.
-this.SetState<IdleState, IdleState.Params>(new IdleState.Params(), force: true);
-```
-
-If the incoming state has the same type as the current one, only `StateParams` is updated — `OnInit` and `OnDispose` are **not** called again. This is the expected behaviour when the same state is re-entered every frame with updated parameters.
-
-**State lifecycle:**
-
-```txt
-SetState() called
-    └─► queued
-            └─► _PhysicsProcess: ReadyToTransition()?
-                    ├─ No  → discard incoming state (returned to pool)
-                    ├─ Same type → update StateParams only
-                    └─ New type → OnDispose (old) → OnInit (new) → OnUpdate each frame
-```
-
-### `CollisionShape3D`
-
-ECS-aware wrapper around `Godot.CollisionShape3D`. Use it when a component needs to be a `CollisionShape3D` node and cannot extend `Component` directly. It replicates the full `Component` contract: resolves the owning `Entity` on `_EnterTree` and calls `OnSiblingTracked` / `OnSiblingUntracked` as siblings appear or disappear.
-
-```csharp
-[GlobalClass]
-public partial class PlayerCollider : CollisionShape3D
-{
-    protected override void OnSiblingTracked(Node node)
-    {
-        if (node is Height height)
-            height.ValueChanged += OnHeightChanged;
-    }
-
-    protected override void OnSiblingUntracked(Node node)
-    {
-        if (node is Height height)
-            height.ValueChanged -= OnHeightChanged;
-    }
-
-    private void OnHeightChanged(float h) =>
-        (this.Shape as CapsuleShape3D)!.Height = h;
-}
-```
-
-| Member                     | Description                                                   |
-| -------------------------- | ------------------------------------------------------------- |
-| `Entity?`                  | The owning entity; `null` while outside the scene tree.       |
-| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity.     |
-| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity. |
-
----
-
-### `Area3D`
-
-ECS-aware wrapper around `Godot.Area3D`. Use it when a component needs to be an `Area3D` node and cannot extend `Component` directly. It replicates the full `Component` contract: resolves the owning `Entity` on `_EnterTree` and calls `OnSiblingTracked` / `OnSiblingUntracked` as siblings appear or disappear.
-
-```csharp
-[GlobalClass]
-public partial class HitBox : Area3D
-{
-    protected override void OnSiblingTracked(Node node)
-    {
-        if (node is Health health)
-            this.BodyEntered += _ => health.TakeDamage(10f);
+        private void OnVelocityChanged(Vector3 v) { /* ... */ }
     }
 }
 ```
 
-| Member                     | Description                                                   |
-| -------------------------- | ------------------------------------------------------------- |
-| `Entity?`                  | The owning entity; `null` while outside the scene tree.       |
-| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity.     |
-| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity. |
+| Member                        | Description                               |
+| ----------------------------- | ----------------------------------------- |
+| `SetState<TState, TParams>()` | Enqueue a state transition.               |
+| `Value`                       | The currently active state (or `null`).   |
+| `ReadyToTransition()`         | Override to block non-forced transitions. |
 
----
+States are pooled via `ElementsPool` — never instantiate them with `new`. Always transition via `SetState`. Use `force: true` to bypass `ReadyToTransition()`.
 
 ### `AnimationPlayer`
 
-ECS-aware wrapper around `Godot.AnimationPlayer`. Use it when a component needs to be an `AnimationPlayer` node and cannot extend `Component` directly (C# does not allow multiple inheritance). It replicates the full `Component` contract: resolves the owning `Entity` on `_EnterTree` and calls `OnSiblingTracked` / `OnSiblingUntracked` as siblings appear or disappear.
+Godot `AnimationPlayer` wrapper that implements `IComponent`. All boilerplate is generated.
 
-```csharp
-[GlobalClass]
-public partial class PlayerAnimator : AnimationPlayer
-{
-    protected override void OnSiblingTracked(Node node)
-    {
-        if (node is Velocity velocity)
-            velocity.ValueChanged += OnVelocityChanged;
-    }
+### `CollisionShape3D`
 
-    protected override void OnSiblingUntracked(Node node)
-    {
-        if (node is Velocity velocity)
-            velocity.ValueChanged -= OnVelocityChanged;
-    }
-
-    private void OnVelocityChanged(Vector3 v) =>
-        this.Play(v != Vector3.Zero ? "run" : "idle");
-}
-```
-
-| Member                     | Description                                                   |
-| -------------------------- | ------------------------------------------------------------- |
-| `Entity?`                  | The owning entity; `null` while outside the scene tree.       |
-| `OnSiblingTracked(Node)`   | Called when a sibling node is added to the owning entity.     |
-| `OnSiblingUntracked(Node)` | Called when a sibling node is removed from the owning entity. |
+Godot `CollisionShape3D` wrapper that implements `IComponent`. All boilerplate is generated.
 
 ---
 
 ## Utils
 
-Low-level utilities with no dependency on `Core` or `Components`, so they can be used in isolation.
-
 ### `ElementsPool`
 
-A static, type-keyed object pool that avoids repeated heap allocations by reusing instances across their lifetime.
+A static, type-keyed object pool that avoids repeated heap allocations.
 
 ```csharp
-// Retrieve an instance from the pool (or create one if the pool is empty).
 var obj = ElementsPool.GetOrCreate<MyClass>();
-
-// Return an instance back to the pool when done with it.
 ElementsPool.Set(obj);
 ```
 
-Internally uses a `Stack<object>` per type, so both get and return are O(1).
-
----
-
 ### `TypedSet<TElement>`
 
-A set of `TElement` that additionally maintains per-derived-type buckets, allowing efficient lookup of elements by their concrete type without iterating the full collection.
+A set that maintains per-derived-type buckets for efficient typed lookups. Implements `ISet<TElement>` and `IReadonlyTypedSet<TElement>`.
 
 ```csharp
-var set = new TypedSet<Node>();
-set.Add(mySprite);     // Sprite3D : Node3D : Node
-set.Add(myLabel);      // Label3D  : Node3D : Node
+var set = new TypedSet<IComponent>();
+set.Add(myVelocity);
+set.Add(myRotation);
 
-// Get all Node3D instances (includes both sprite and label).
-IReadOnlySet<Node3D> nodes = set.GetAll<Node3D>();
-
-// Get the single Sprite3D (throws if zero or more than one).
-Sprite3D sprite = set.Get<Sprite3D>();
-
-// Get the single Label3D, or null if absent.
-Label3D? label = set.GetOrNull<Label3D>();
+Velocity? v    = set.GetOrNull<Velocity>();
+Velocity  v2   = set.Get<Velocity>();
+IReadOnlySet<IComponent> all = set.GetAll<IComponent>();
 ```
-
-Implements both `ISet<TElement>` and `IReadonlyTypedSet<TElement>`. Full set operations (`UnionWith`, `IntersectWith`, `ExceptWith`, `SymmetricExceptWith`) keep the derived-type buckets in sync automatically.
-
----
 
 ### `IReadonlyTypedSet<TElement>`
 
-The read-only surface of `TypedSet<TElement>`. Extends `IReadOnlySet<TElement>` with the three typed-query methods:
+Read-only view of `TypedSet<TElement>`. Extends `IReadOnlySet<TElement>` with:
 
-| Method                  | Description                                                                                  |
-| ----------------------- | -------------------------------------------------------------------------------------------- |
-| `GetAll<TDerived>()`    | Returns all elements whose type is `TDerived` or a subtype of it.                            |
-| `Get<TDerived>()`       | Returns the single element of type `TDerived`. Throws if not exactly one.                    |
-| `GetOrNull<TDerived>()` | Returns the single element of type `TDerived`, or `null` if absent. Throws if more than one. |
-
----
+| Method                  | Description                                                                          |
+| ----------------------- | ------------------------------------------------------------------------------------ |
+| `GetAll<TDerived>()`    | All elements whose type is `TDerived` or a subtype.                                  |
+| `Get<TDerived>()`       | The single element of type `TDerived`. Throws if not exactly one.                    |
+| `GetOrNull<TDerived>()` | The single element of type `TDerived`, or `null` if absent. Throws if more than one. |
 
 ### `NodesTracker<TNode>`
 
-Watches a Godot node subtree and maintains a live set of all descendant nodes that are of type `TNode`. Fires events when nodes enter or exit the tracked subtree.
+Watches a Godot node subtree and maintains a live set of nodes matching type `TNode`.
+Constraint: `where TNode : INode` — supports both classes and interfaces (e.g., `IEntity`, `IComponent`).
 
 ```csharp
-var tracker = new NodesTracker<CharacterBody3D>();
+var tracker = new NodesTracker<IEntity>();
 
-tracker.NodeTracked   += node => GD.Print($"{node.Name} entered");
-tracker.NodeUntracked += node => GD.Print($"{node.Name} exited");
+tracker.NodeTracked   += entity => GD.Print($"tracked");
+tracker.NodeUntracked += entity => GD.Print($"untracked");
 
 // Start watching from a root node (the root itself is excluded).
 tracker.Track(GetTree().Root);
 
 // Live set of all currently tracked nodes.
-IReadOnlySet<CharacterBody3D> bodies = tracker.Nodes;
+IReadOnlySet<IEntity> entities = tracker.Nodes;
 
 // Stop watching and clean up all event subscriptions.
 tracker.Untrack();
 ```
 
-`Track` and `Untrack` must be called in pairs. Calling `Track` again before `Untrack` throws an `InvalidOperationException`.
-
-**`DirectChildren` mode:**
-
-Set `DirectChildren = true` to restrict tracking to the immediate children of the root, skipping deeper descendants entirely.
-
-```csharp
-// Only immediate children of the entity are tracked.
-var tracker = new NodesTracker<Node>() { DirectChildren = true };
-tracker.Track(myEntity);
-```
+`Track` and `Untrack` must be called in pairs.
 
 | Property         | Default | Description                                                              |
 | ---------------- | ------- | ------------------------------------------------------------------------ |
 | `DirectChildren` | `false` | When `true`, only direct children of the root are tracked; no recursion. |
+
+---
+
+## Source generators
+
+The `ECS.Generators` project contains Roslyn incremental source generators that run at compile time. Wired into `ECS.csproj` via `ProjectReference` with `OutputItemType="Analyzer"`. Not shipped as a NuGet package.
+
+| Generator                       | Trigger                  | Purpose                                                                     |
+| ------------------------------- | ------------------------ | --------------------------------------------------------------------------- |
+| `HideInheritedMembersGenerator` | `[HideInheritedMembers]` | Hides/seals all inherited Godot public members from IntelliSense            |
+| `EntityGenerator`               | `IEntity`                | Generates `Components`, `Children`, `Parent`, trackers, lifecycle overrides |
+| `ComponentGenerator`            | `IComponent`             | Generates `Entity`, `Siblings`, trackers, lifecycle overrides + hooks       |
+| `SystemGenerator`               | `ISystem`                | Generates `Entities`, tracker, lifecycle overrides + hooks                  |
+
+All members are generated only when absent from the hand-written class (skip-if-present rule).
 
 ---
 

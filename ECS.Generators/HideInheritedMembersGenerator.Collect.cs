@@ -10,6 +10,12 @@ public sealed partial class HideInheritedMembersGenerator
         public bool IsVirtualOrOverride { get; } = isVirtualOrOverride;
     }
 
+    // Godot lifecycle methods owned by role generators when a role interface is present.
+    private static readonly HashSet<string> _lifecycleNames = new(StringComparer.Ordinal)
+    {
+        "_EnterTree", "_ExitTree", "_PhysicsProcess",
+    };
+
     private static HashSet<string> GetWhitelist(INamedTypeSymbol classSymbol, string attrFqn)
     {
         foreach (var attr in classSymbol.GetAttributes())
@@ -42,9 +48,9 @@ public sealed partial class HideInheritedMembersGenerator
     private static List<MemberToHide> CollectMembersToHide(
         INamedTypeSymbol classSymbol,
         HashSet<string> whitelist,
-        HashSet<string> ownNames)
+        HashSet<string> ownNames,
+        bool skipLifecycle)
     {
-        // Signature keys we have already enqueued (avoid duplicates across hierarchy levels).
         var seen = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<MemberToHide>();
 
@@ -70,6 +76,9 @@ public sealed partial class HideInheritedMembersGenerator
                 if (IsObsolete(member)) continue;
                 if (whitelist.Contains(member.Name)) continue;
                 if (ownNames.Contains(member.Name)) continue;
+
+                // When a role interface is present the role generator owns these methods.
+                if (skipLifecycle && _lifecycleNames.Contains(member.Name)) continue;
 
                 var key = BuildKey(member);
                 if (!seen.Add(key)) continue;

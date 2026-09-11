@@ -72,15 +72,19 @@ public partial class Velocity : Component<Vector3>
     {
         base.OnUpdate(delta);
 
+        // TODO: check if it makes sense to have a component that tracks whether an entity is on the floor or not.
+        // if not, the casting should be optional base.Entity! as CharacterBody3D.
+        var body = (CharacterBody3D)base.Entity!;
+
         this._speed += this._pendingSpeedDelta * (float)delta;
         this._speed = Mathf.Clamp(this._speed, 0f, this.MaxSpeed);
         this._pendingSpeedDelta = 0f;
 
-        if (!base.Entity!.IsOnFloor())
+        if (!body.IsOnFloor())
             this._speed = Mathf.Max(this._speed - this.AirFriction * (float)delta, 0f);
 
         var velocity = this._direction * this._speed;
-        velocity.Y = base.Entity.IsOnFloor()
+        velocity.Y = body.IsOnFloor()
             ? (velocity.Y <= 0 ? 0 : velocity.Y)
             : (base.Value.Y - this.Gravity * (float)delta);
 
@@ -89,8 +93,9 @@ public partial class Velocity : Component<Vector3>
 
     private void OnVelocityChanged(Vector3 velocity)
     {
-        base.Entity!.Velocity = velocity;
-        base.Entity.MoveAndSlide();
+        var characterBody3D = base.Entity! as CharacterBody3D;
+        characterBody3D?.Velocity = velocity;
+        characterBody3D?.MoveAndSlide();
     }
 
     /// <inheritdoc/>

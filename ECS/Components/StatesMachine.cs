@@ -1,5 +1,6 @@
-using ECS.Utils;
 using ECS.Core;
+using ECS.Interfaces;
+using ECS.Utils;
 using Godot;
 
 namespace ECS.Components;
@@ -7,8 +8,8 @@ namespace ECS.Components;
 /// <summary>
 /// Generic finite state machine component that pools states and processes queued transitions each physics frame.
 /// </summary>
-public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<TEntity>.BaseState?>
-    where TEntity : Entity
+[GlobalClass]
+public partial class StatesMachine : Component<StatesMachine.BaseState?>
 {
     private readonly Queue<ValueTuple<BaseState, bool>> _newStates = [];
 
@@ -33,7 +34,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
 
         if (this.Value != null)
         {
-            StatesMachine<TEntity>.DisposeState(this.Value);
+            StatesMachine.DisposeState(this.Value);
             this.Value = null;
         }
     }
@@ -49,7 +50,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
             throw new InvalidOperationException($"Component is not part of the tree");
 
         var state = ElementsPool.GetOrCreate<TNewState>();
-        state.Entity = (TEntity)base.Entity;
+        state.Entity = base.Entity;
         state.StateParams = stateParams;
         this._newStates.Enqueue((state, force));
     }
@@ -81,7 +82,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
             else
             {
                 if (this.Value != null)
-                    StatesMachine<TEntity>.DisposeState(this.Value);
+                    StatesMachine.DisposeState(this.Value);
 
                 newState.OnInit();
                 this.Value = newState;
@@ -103,7 +104,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
     {
         if (this.Value != null)
         {
-            StatesMachine<TEntity>.DisposeState(this.Value);
+            StatesMachine.DisposeState(this.Value);
             this.Value = null;
         }
 
@@ -119,31 +120,31 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
     }
 
     /// <summary>
-    /// Base class for all states managed by <see cref="StatesMachine{TEntity}"/>.
+    /// Base class for all states managed by <see cref="StatesMachine"/>.
     /// </summary>
     public abstract class BaseState
     {
         /// <summary>
         /// The entity this state is currently operating on.
         /// </summary>
-        public TEntity Entity { get; internal set; } = null!;
+        public IEntity Entity { get; internal set; } = null!;
 
-        private readonly NodesTracker<Node> _childrenTracker = new() { DirectChildren = true };
+        private readonly NodesTracker<IComponent> _siblingsTracker = new() { DirectChildren = true };
 
         /// <summary>
         /// Called once when this state becomes the active state.
         /// </summary>
         internal protected virtual void OnInit()
         {
-            this._childrenTracker.NodeTracked += this.OnSiblingTracked;
-            this._childrenTracker.NodeUntracked += this.OnSiblingUntracked;
-            this._childrenTracker.Track(this.Entity);
+            this._siblingsTracker.NodeTracked += this.OnSiblingTracked;
+            this._siblingsTracker.NodeUntracked += this.OnSiblingUntracked;
+            this._siblingsTracker.Track((global::Godot.Node)(object)this.Entity);
         }
 
         /// <summary>
-        /// Called when a sibling node is added to the owning <see cref="Entity"/>.
+        /// Called when a sibling component is added to the owning entity.
         /// </summary>
-        protected virtual void OnSiblingTracked(Node node) { }
+        protected virtual void OnSiblingTracked(IComponent component) { }
 
         /// <summary>
         /// Called every physics frame while this state is active.
@@ -158,18 +159,18 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
         internal virtual void CopyParamsFrom(BaseState source) { }
 
         /// <summary>
-        /// Called when a sibling node is removed from the owning <see cref="Entity"/>.
+        /// Called when a sibling component is removed from the owning entity.
         /// </summary>
-        protected virtual void OnSiblingUntracked(Node node) { }
+        protected virtual void OnSiblingUntracked(IComponent component) { }
 
         /// <summary>
         /// Called once when this state is replaced by another state.
         /// </summary>
         internal protected virtual void OnDispose()
         {
-            this._childrenTracker.Untrack();
-            this._childrenTracker.NodeUntracked -= this.OnSiblingUntracked;
-            this._childrenTracker.NodeTracked -= this.OnSiblingTracked;
+            this._siblingsTracker.Untrack();
+            this._siblingsTracker.NodeUntracked -= this.OnSiblingUntracked;
+            this._siblingsTracker.NodeTracked -= this.OnSiblingTracked;
         }
     }
 
@@ -180,7 +181,7 @@ public abstract partial class StatesMachine<TEntity> : Component<StatesMachine<T
         where TStateParams : struct
     {
         /// <summary>
-        /// Parameters supplied by the last <see cref="StatesMachine{TEntity}.SetState{TNewState, TStateParams}"/> call.
+        /// Parameters supplied by the last <see cref="StatesMachine.SetState{TNewState, TStateParams}"/> call.
         /// </summary>
         public TStateParams StateParams { get; internal set; } = default;
 

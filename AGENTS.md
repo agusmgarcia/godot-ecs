@@ -6,31 +6,36 @@ Authoritative guide for AI agents working on this repository. Read the whole fil
 
 ## Project overview
 
-`godot-ecs` is a lightweight ECS framework for [Godot 4](https://godotengine.org/) written in C#. It is distributed as a single NuGet package (`ECS`) and is structured in three layers:
+`godot-ecs` is a lightweight ECS framework for [Godot 4](https://godotengine.org/) written in C#. It is distributed as a single NuGet package (`ECS`) and uses Roslyn source generators to eliminate boilerplate. The runtime code is structured in four layers:
 
 ```txt
 ECS/
-├── Core/        Entity, Component, System — the ECS abstractions.
+├── Interfaces/  IEntity, IComponent, ISystem, INode — role marker interfaces.
+├── Core/        Entity, Component, System — ready-to-use base classes.
 ├── Components/  Ready-to-use Component implementations.
+├── Entities/    Ready-to-use Entity implementations.
 └── Utils/       Low-level utilities with no ECS dependency.
 ```
 
-**Layer rule:** `Components` → `Core` → `Utils`. A layer may only depend on the layer directly above it. `Utils` has no internal dependencies.
+**Layer rule:** `Components`/`Entities` → `Core` → `Interfaces` → `Utils`. A layer may only depend on layers above it. `Utils` has no internal dependencies.
+
+A companion project, `ECS.Generators`, contains the Roslyn source generators. It is not shipped as a NuGet package; its output is baked into the compiled `ECS` assembly.
 
 ---
 
 ## Tooling
 
-| Setting          | Value                 |
-| ---------------- | --------------------- |
-| Language         | C# 14                 |
-| Target framework | .NET 10 (`net10.0`)   |
-| Godot SDK        | `Godot.NET.Sdk/4.7.1` |
-| Nullable         | enabled (errors)      |
-| Implicit usings  | enabled               |
-| Solution file    | `ECS.slnx`            |
-| Project file     | `ECS/ECS.csproj`      |
-| README           | `.github/README.md`   |
+| Setting           | Value                                  |
+| ----------------- | -------------------------------------- |
+| Language          | C# 14                                  |
+| Target framework  | .NET 10 (`net10.0`)                    |
+| Godot SDK         | `Godot.NET.Sdk/4.7.1`                  |
+| Nullable          | enabled (errors)                       |
+| Implicit usings   | enabled                                |
+| Solution file     | `ECS.slnx`                             |
+| ECS project file  | `ECS/ECS.csproj`                       |
+| Generator project | `ECS.Generators/ECS.Generators.csproj` |
+| README            | `.github/README.md`                    |
 
 ---
 
@@ -38,25 +43,41 @@ ECS/
 
 ```txt
 ECS/
+├── Interfaces/
+│   ├── INode.cs                     — base interface exposing Name
+│   ├── IEntity.cs                   — entity contract (Components, Children, Parent)
+│   ├── IComponent.cs                — component marker interface
+│   └── ISystem.cs                   — system marker interface
 ├── Core/
-│   ├── Entity.cs                    — abstract base for all entities
-│   ├── Component.cs                 — base for all components
+│   ├── Entity.cs                    — base entity (Node + IEntity)
+│   ├── Component.cs                 — base component (Node + IComponent)
 │   ├── Component.TValue.cs          — generic value-wrapping component
-│   └── System.cs                    — base for all systems
+│   └── System.cs                    — base system (Node + ISystem)
+├── Entities/
+│   ├── CharacterBody3D.cs           — CharacterBody3D entity
+│   └── Area3D.cs                    — Area3D entity
 ├── Components/
 │   ├── Main.cs                      — marker component
 │   ├── Height.cs                    — float value component
 │   ├── Velocity.cs                  — 3D physics velocity
 │   ├── Rotation.cs                  — smooth look-at rotation
 │   ├── StatesMachine.cs             — generic pooled state machine
-│   ├── AnimationPlayer.cs           — Godot AnimationPlayer wrapper
-│   ├── Area3D.cs                    — Godot Area3D wrapper
-│   └── CollisionShape3D.cs          — Godot CollisionShape3D wrapper
+│   ├── AnimationPlayer.cs           — Godot AnimationPlayer component
+│   └── CollisionShape3D.cs          — Godot CollisionShape3D component
 └── Utils/
     ├── ElementsPool.cs              — static type-keyed object pool
     ├── TypedSet.TElement.cs         — set with per-type buckets
     ├── IReadonlyTypedSet.TElement.cs — read-only interface for TypedSet
     └── NodesTracker.TNode.cs        — live subtree watcher
+
+ECS.Generators/
+├── HideInheritedMembersGenerator.cs        — hides/seals inherited Godot members
+├── HideInheritedMembersGenerator.Collect.cs — member collection logic
+├── HideInheritedMembersGenerator.Emit.cs   — C# source emission helpers
+├── EntityGenerator.cs                      — IEntity boilerplate generator
+├── ComponentGenerator.cs                   — IComponent boilerplate generator
+├── SystemGenerator.cs                      — ISystem boilerplate generator
+└── RoleGeneratorHelper.cs                  — shared utilities for role generators
 ```
 
 Generic classes split into partial files use the naming convention `TypeName.TTypeParam.cs` (e.g., `Component.TValue.cs`, `NodesTracker.TNode.cs`).
@@ -65,52 +86,85 @@ Generic classes split into partial files use the naming convention `TypeName.TTy
 
 ## Architecture
 
-### `Entity` (`Core/Entity.cs`)
+### Interfaces (`Interfaces/`)
 
-- Extends `Godot.CharacterBody3D`. Every entity is a 3D physics body.
-- `abstract` — must always be subclassed; no `[GlobalClass]` on the base.
-- Internally creates a `NodesTracker<Node>` (full recursion, `DirectChildren = false`) rooted on itself to populate `Children`, a `TypedSet<Node>` that components query via `Children.Get<T>()`, `Children.GetOrNull<T>()`, and `Children.GetAll<T>()`.
+**`INode`** — base interface that exposes `string Name { get; }`. All role interfaces extend it.
 
-### `Component` (`Core/Component.cs`)
+**`IEntity`** — extends `INode`. Declares `Components` (`IReadonlyTypedSet<IComponent>`), `Children` (`IReadOnlySet<IEntity>`), and `Parent` (`IEntity?`). Any Godot node class that implements `IEntity` gets its full boilerplate generated by `EntityGenerator`.
 
-- Extends `Godot.Node`. Marked `[GlobalClass]` so it can be used directly in the Godot editor.
-- Resolves `Entity` via `GetOwner<Entity>()` in `_EnterTree`.
-- Creates a `NodesTracker<Node>` with `DirectChildren = true` rooted on the owning entity to track siblings. Fires `OnSiblingTracked` / `OnSiblingUntracked` — override these to subscribe/unsubscribe to sibling events without tight coupling.
-- `Entity` is `null` outside the scene tree; assert non-null with `!` when inside Godot callbacks.
+**`IComponent`** — extends `INode`. Empty marker. Any Godot node class that implements `IComponent` gets its full boilerplate generated by `ComponentGenerator`.
 
-### `Component<TValue>` (`Core/Component.TValue.cs`)
+**`ISystem`** — extends `INode`. Empty marker. Any Godot node class that implements `ISystem` gets its full boilerplate generated by `SystemGenerator`.
 
-- `abstract partial` — extends `Component`.
-- Wraps a single value with a `ValueChanged` event, fired only when the value actually changes (via `EqualityComparer<TValue>`).
-- Uses C# 14 primary constructor: `Component<TValue>(TValue initialValue)`.
+### Source generators (`ECS.Generators/`)
 
-### `System` (`Core/System.cs`)
+The generators project targets `netstandard2.0` and is wired into `ECS.csproj` as `OutputItemType="Analyzer"`. It is **not** packable (`IsPackable=false`). All generators run in parallel at compile time.
 
-- Extends `Godot.Node`. Marked `[GlobalClass]`.
-- Creates a `NodesTracker<Entity>` rooted at `GetTree().Root` (full recursion). Override `OnEntityTracked` / `OnEntityUntracked` to react to entities entering or leaving the scene tree.
-- `Entities` exposes the live `IReadOnlySet<Entity>` from the tracker.
+**`HideInheritedMembersGenerator`** — triggered by `[HideInheritedMembers("Name")]`. For every annotated class, walks the base-type hierarchy (stopping before `GodotObject`) and emits a partial class that:
 
-### Godot-node wrappers (`Components/AnimationPlayer.cs`, `Area3D.cs`, `CollisionShape3D.cs`)
+- Shadows non-virtual public members with `new` + `[EditorBrowsable(Never)]`.
+- Seals virtual/override/abstract public members with `sealed override` + `[EditorBrowsable(Never)]`.
+- When the class also implements `IEntity`, `IComponent`, or `ISystem`, the three Godot lifecycle methods (`_EnterTree`, `_PhysicsProcess`, `_ExitTree`) are **skipped** — the corresponding role generator owns them instead.
 
-C# does not support multiple inheritance, so nodes that must extend a specific Godot type (other than `Node`) cannot extend `Component`. These wrapper classes replicate the full `Component` contract manually:
+**`EntityGenerator`** — triggered by `IEntity`. Generates (when absent from the hand-written class):
 
-- Resolve `Entity` via `GetOwner<Entity>()` in `_EnterTree`.
-- Create a `NodesTracker<Node>` with `DirectChildren = true` rooted on the entity.
-- Expose `OnSiblingTracked` / `OnSiblingUntracked` virtual hooks.
-- The `_ExitTree` teardown mirrors `Component._ExitTree` exactly.
+- `TypedSet<IComponent>` + `NodesTracker<IComponent>` (`DirectChildren = true`) for `Components`.
+- `NodesTracker<IEntity>` (`DirectChildren = true`) for `Children` (exposed via `.Nodes`).
+- `IEntity? Parent` property (resolved via `GetParent<IEntity>()`).
+- `sealed override _EnterTree` / `_ExitTree` with `[EditorBrowsable(Never)]` — sets up/tears down both trackers and resolves `Parent`.
+- Private tracker callbacks for the `TypedSet` add/remove.
+- Entity has **no** `OnInit`/`OnUpdate`/`OnDispose` hooks — it is a pure container.
+
+**`ComponentGenerator`** — triggered by `IComponent`. Generates (when absent):
+
+- `IEntity? Entity` property (resolved via `GetOwner<IEntity>()`).
+- `TypedSet<IComponent>` + `NodesTracker<IComponent>` (`DirectChildren = true`) for `Siblings`.
+- `sealed override _EnterTree` / `_PhysicsProcess` / `_ExitTree` with `[EditorBrowsable(Never)]` — lifecycle bridge calling `OnInit()` / `OnUpdate(delta)` / `OnDispose()`.
+- Private tracker callbacks that update the `TypedSet` and forward to the virtual hooks.
+- Virtual hooks: `OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingTracked(IComponent)`, `OnSiblingUntracked(IComponent)`.
+
+**`SystemGenerator`** — triggered by `ISystem`. Generates (when absent):
+
+- `TypedSet<IEntity>` + `NodesTracker<IEntity>` for `Entities` (tracks from `GetTree().Root`).
+- `sealed override _EnterTree` / `_PhysicsProcess` / `_ExitTree` with `[EditorBrowsable(Never)]` — lifecycle bridge calling `OnInit()` / `OnUpdate(delta)` / `OnDispose()`.
+- Private tracker callbacks that update the `TypedSet` and forward to the virtual hooks.
+- Virtual hooks: `OnInit`, `OnUpdate`, `OnDispose`, `OnEntityTracked(IEntity)`, `OnEntityUntracked(IEntity)`.
+
+**Skip-if-present rule:** Every role generator checks `ownNames` (the set of members declared directly on the annotated class). If a member already exists in the hand-written source, the generator does not re-emit it.
+
+### Core classes (`Core/`)
+
+**`Entity`** — `[GlobalClass] [HideInheritedMembers("Name")] partial class Entity : Node, IEntity`. Body contains only the explicit `INode.Name` implementation. All entity boilerplate is generated.
+
+**`Component`** — `[GlobalClass] [HideInheritedMembers("Name")] partial class Component : Node, IComponent`. Body contains only the explicit `INode.Name` implementation. All component boilerplate is generated.
+
+**`Component<TValue>`** — `abstract partial` extending `Component`. Wraps a single value with a `ValueChanged` event, fired only when the value actually changes. Uses C# 14 primary constructor.
+
+**`System`** — `[GlobalClass] [HideInheritedMembers("Name")] partial class System : Node, ISystem`. Body contains only the explicit `INode.Name` implementation. All system boilerplate is generated.
+
+### Entity implementations (`Entities/`)
+
+Classes that extend a specific Godot node type and implement `IEntity`:
+
+- `CharacterBody3D` — `Godot.CharacterBody3D` + `IEntity`.
+- `Area3D` — `Godot.Area3D` + `IEntity`.
+
+### Godot-node wrapper components (`Components/AnimationPlayer.cs`, `CollisionShape3D.cs`)
+
+Classes that extend a specific Godot node type and implement `IComponent`. All component boilerplate is generated; the hand-written source contains only the class declaration and `INode.Name`.
 
 ### `NodesTracker<TNode>` (`Utils/NodesTracker.TNode.cs`)
 
-- `sealed`. Watches a Godot node subtree via `ChildEnteredTree` / `ChildExitingTree` events.
-- `Track(root)` / `Untrack()` must be called in pairs; calling either out of order throws `InvalidOperationException`.
-- `DirectChildren = true` restricts tracking to immediate children of the root only (no recursion). Used by `Component` and all wrappers to track siblings.
-- `DirectChildren = false` (default) recurses the full subtree. Used by `Entity` and `System`.
+- `sealed`. Constraint: `where TNode : INode` — supports interfaces like `IEntity` and `IComponent`.
+- Watches a Godot node subtree via `ChildEnteredTree` / `ChildExitingTree` events.
+- `Track(Node root)` / `Untrack()` must be called in pairs.
+- `DirectChildren = true` restricts tracking to immediate children only.
 
 ### `TypedSet<TElement>` / `IReadonlyTypedSet<TElement>` (`Utils/`)
 
 - A `HashSet` augmented with per-concrete-type buckets, enabling O(1) typed lookups.
 - Buckets are borrowed from `ElementsPool` and returned when emptied.
-- `Entity.Children` exposes this as `IReadonlyTypedSet<Node>`.
+- `Entity.Components` exposes this as `IReadonlyTypedSet<IComponent>`.
 
 ### `ElementsPool` (`Utils/ElementsPool.cs`)
 
@@ -123,17 +177,20 @@ C# does not support multiple inheritance, so nodes that must extend a specific G
 
 ### Namespaces
 
-| Directory     | Namespace        |
-| ------------- | ---------------- |
-| `Core/`       | `ECS.Core`       |
-| `Components/` | `ECS.Components` |
-| `Utils/`      | `ECS.Utils`      |
+| Directory         | Namespace        |
+| ----------------- | ---------------- |
+| `Interfaces/`     | `ECS.Interfaces` |
+| `Core/`           | `ECS.Core`       |
+| `Components/`     | `ECS.Components` |
+| `Entities/`       | `ECS.Entities`   |
+| `Utils/`          | `ECS.Utils`      |
+| `ECS.Generators/` | `ECS.Generators` |
 
 ### Class modifiers
 
 - Always `partial`.
-- Use `[GlobalClass]` on every class that Godot users instantiate from the editor (`Component`, `System`, and all `Components/` classes). Do **not** put it on abstract bases (`Entity`, `Component<TValue>`, `StatesMachine<TEntity>`).
-- Use `abstract` when a class is only meaningful as a base (`Entity`, `Component<TValue>`, `StatesMachine<TEntity>`, state base classes).
+- Use `[GlobalClass]` on every class that Godot users instantiate from the editor (`Component`, `System`, `Entity`, and all entity/component implementations). Do **not** put it on abstract bases (`Component<TValue>`, `StatesMachine<TEntity>`).
+- Use `abstract` when a class is only meaningful as a base (`Component<TValue>`, `StatesMachine<TEntity>`, state base classes).
 - Use `sealed` for utility classes that must not be subclassed (`NodesTracker<TNode>`, `TypedSet<TElement>`).
 - Use `static` only for pure utility classes with no instance state (`ElementsPool`).
 
@@ -144,37 +201,46 @@ C# does not support multiple inheritance, so nodes that must extend a specific G
 - `private set` or `protected set` on properties that must not be assigned from outside.
 - `private readonly` for all internal fields.
 
-### `_EnterTree` / `_ExitTree` lifecycle order
+### Lifecycle hooks (generated)
 
-**`_EnterTree`:**
+Consumers do **not** override `_EnterTree`, `_ExitTree`, or `_PhysicsProcess`. These are `sealed override` by the generators. Instead, override the ECS hooks:
 
-1. `base._EnterTree()` — always first.
-2. Resolve state (e.g., `this.Entity = base.GetOwner<Entity>()`).
-3. Subscribe to tracker events (`NodeTracked +=`, `NodeUntracked +=`).
-4. Call `tracker.Track(...)`.
-5. Subscribe to value-changed events and fire an initial sync call.
+| Godot method (sealed) | ECS hook (virtual) | Available on            |
+| --------------------- | ------------------ | ----------------------- |
+| `_EnterTree`          | `OnInit()`         | `IComponent`, `ISystem` |
+| `_PhysicsProcess`     | `OnUpdate(double)` | `IComponent`, `ISystem` |
+| `_ExitTree`           | `OnDispose()`      | `IComponent`, `ISystem` |
 
-**`_ExitTree`:**
+`IEntity` has **no** lifecycle hooks — it is a pure container. Its `_EnterTree`/`_ExitTree` only set up the trackers.
 
-1. Fire any cleanup sync calls (e.g., reset velocity to zero).
-2. Unsubscribe from value-changed events.
-3. Call `tracker.Untrack()` — always before unsubscribing tracker events.
-4. Unsubscribe tracker events in **reverse** subscription order (`NodeUntracked -=` before `NodeTracked -=`).
-5. Clear state (e.g., `this.Entity = null`, reset fields to zero/default).
-6. `base._ExitTree()` — always last.
+**Lifecycle order for components:**
+
+**`_EnterTree` (sealed, generated):**
+
+1. `base._EnterTree()`.
+2. Resolve `Entity` via `GetOwner<IEntity>()`.
+3. Start sibling tracker.
+4. Call `this.OnInit()`.
+
+**`_ExitTree` (sealed, generated):**
+
+1. Call `this.OnDispose()`.
+2. Stop sibling tracker.
+3. Clear `Entity` to null.
+4. `base._ExitTree()`.
 
 ### Expressions and bodies
 
 - Single-expression methods and property getters use `=>`.
 - Multi-statement methods use block bodies `{ }`.
-- Empty virtual hooks use an inline empty block: `protected virtual void OnSiblingTracked(Node node) { }`.
+- Empty virtual hooks use an inline empty block: `protected virtual void OnInit() { }`.
 
 ### Variables and types
 
 - `var` for local variables; explicit types for fields, properties, and parameters.
 - `[]` for empty collection literals (C# 12+ collection expressions).
-- Target-typed `new()` for field initializers: `private readonly NodesTracker<Node> _tracker = new() { DirectChildren = true };`.
-- Nullable reference types enforced throughout; use `!` assertion only inside Godot callbacks where the lifecycle invariant is guaranteed.
+- Target-typed `new()` for field initializers.
+- Nullable reference types enforced throughout; use `!` assertion only inside lifecycle callbacks where the invariant is guaranteed.
 
 ---
 
@@ -183,47 +249,21 @@ C# does not support multiple inheritance, so nodes that must extend a specific G
 These rules apply to every public and protected member. Do **not** document private or internal members.
 
 1. Every public/protected member gets an XML `<summary>` doc comment.
-2. Use `/// <inheritdoc/>` on `override` members and explicit interface implementations — never repeat or paraphrase the base class or interface documentation.
+2. Use `/// <inheritdoc/>` on `override` members and explicit interface implementations — never repeat or paraphrase the base documentation.
 3. The description **must fit on a single line** — never wrap across multiple `///` lines.
-4. Use `<see cref="..."/>` for types/members, `<typeparamref name="..."/>` for type parameters, `<paramref name="..."/>` for method parameters, and `<c>...</c>` for literals (`null`, `true`, `false`).
-
-**Correct:**
-
-```csharp
-/// <summary>
-/// Called when a sibling node is added to the owning <see cref="Entity"/>.
-/// </summary>
-protected virtual void OnSiblingTracked(Node node) { }
-```
-
-**Wrong — wraps to a second line:**
-
-```csharp
-/// <summary>
-/// Called when a sibling node is added to the owning
-/// <see cref="Entity"/>.
-/// </summary>
-```
-
-**Wrong — placeholder not replaced:**
-
-```csharp
-/// <summary>
-/// // TODO: document this.
-/// </summary>
-```
+4. Use `<see cref="..."/>` for types/members, `<typeparamref name="..."/>` for type parameters, `<paramref name="..."/>` for method parameters, and `<c>...</c>` for literals.
 
 ---
 
 ## Patterns
 
-### Adding a new `Component`
+### Adding a new component
 
 1. Create `ECS/Components/MyComponent.cs`.
-2. Extend `Component` (or `Component<TValue>` if a value is needed).
+2. Extend `Component` (or `Component<TValue>` for a value wrapper).
 3. Mark `[GlobalClass]` and `partial`.
-4. React to siblings in `OnSiblingTracked` / `OnSiblingUntracked` — do not access `Entity.Children` at construction time.
-5. Always call `base._EnterTree()` first and `base._ExitTree()` last.
+4. React to siblings in `OnSiblingTracked(IComponent)` / `OnSiblingUntracked(IComponent)`.
+5. Always call `base.OnInit()` first and `base.OnDispose()` last.
 6. Document every public and protected member with a single-line `<summary>`.
 
 ```csharp
@@ -233,67 +273,65 @@ protected virtual void OnSiblingTracked(Node node) { }
 [GlobalClass]
 public partial class MyComponent : Component
 {
-    protected override void OnSiblingTracked(Node node)
+    protected override void OnInit()
     {
-        if (node is Velocity velocity)
+        base.OnInit();
+        // subscribe to events, initialise state…
+    }
+
+    protected override void OnSiblingTracked(IComponent component)
+    {
+        base.OnSiblingTracked(component);
+        if (component is Velocity velocity)
             velocity.ValueChanged += this.OnVelocityChanged;
     }
 
-    protected override void OnSiblingUntracked(Node node)
+    protected override void OnSiblingUntracked(IComponent component)
     {
-        if (node is Velocity velocity)
+        if (component is Velocity velocity)
             velocity.ValueChanged -= this.OnVelocityChanged;
+        base.OnSiblingUntracked(component);
     }
 
-    private void OnVelocityChanged(Vector3 v) { /* ... */ }
+    protected override void OnDispose()
+    {
+        // clean up…
+        base.OnDispose();
+    }
+
+    private void OnVelocityChanged(Vector3 v) { /* … */ }
 }
 ```
 
 ### Adding a Godot-node wrapper component
 
-Use this when the component must extend a specific Godot type (e.g., `Godot.Area3D`) and cannot inherit `Component`. Copy the boilerplate from an existing wrapper (`Area3D.cs`, `AnimationPlayer.cs`, `CollisionShape3D.cs`) and change only the base class and the class `<summary>`.
+Use this when the component must extend a specific Godot type (e.g., `Godot.Area3D`) and cannot inherit `Component`. Implement `IComponent` — the generator handles all boilerplate.
 
 ```csharp
 /// <summary>
-/// ECS-aware wrapper around <see cref="Godot.MyNode"/> that resolves the owning <see cref="Entity"/> and tracks sibling nodes.
+/// ECS-aware wrapper around <see cref="Godot.MyNode"/>.
 /// </summary>
 [GlobalClass]
-public partial class MyWrapper : Godot.MyNode
+[HideInheritedMembers("Name")]
+public partial class MyWrapper : Godot.MyNode, IComponent
 {
-    /// <summary>
-    /// The entity that owns this component; <c>null</c> while the component is outside the scene tree.
-    /// </summary>
-    protected Entity? Entity { get; private set; }
+    string INode.Name => base.Name;
+}
+```
 
-    private readonly NodesTracker<Node> _childrenTracker = new() { DirectChildren = true };
+### Adding a Godot-node entity variant
 
-    public override void _EnterTree()
-    {
-        base._EnterTree();
-        this.Entity = base.GetOwner<Entity>();
-        this._childrenTracker.NodeTracked += this.OnSiblingTracked;
-        this._childrenTracker.NodeUntracked += this.OnSiblingUntracked;
-        this._childrenTracker.Track(this.Entity);
-    }
+Use this when you need an entity based on a specific Godot type (e.g., `Godot.Area3D`). Implement `IEntity` — the generator handles all boilerplate.
 
-    /// <summary>
-    /// Called when a sibling node is added to the owning <see cref="Entity"/>.
-    /// </summary>
-    protected virtual void OnSiblingTracked(Node node) { }
-
-    /// <summary>
-    /// Called when a sibling node is removed from the owning <see cref="Entity"/>.
-    /// </summary>
-    protected virtual void OnSiblingUntracked(Node node) { }
-
-    public override void _ExitTree()
-    {
-        this._childrenTracker.Untrack();
-        this._childrenTracker.NodeUntracked -= this.OnSiblingUntracked;
-        this._childrenTracker.NodeTracked -= this.OnSiblingTracked;
-        this.Entity = null;
-        base._ExitTree();
-    }
+```csharp
+/// <summary>
+/// Entity variant that extends <see cref="Godot.Area3D"/>.
+/// </summary>
+[GlobalClass]
+[HideInheritedMembers("Name")]
+public partial class Area3D : Godot.Area3D, IEntity
+{
+    string INode.Name => base.Name;
 }
 ```
 
@@ -301,14 +339,14 @@ public partial class MyWrapper : Godot.MyNode
 
 States are nested `abstract class` types inside the concrete state machine. Use `BaseState` for stateless states and `BaseState<TStateParams>` when data must be passed on transition. `TStateParams` must be a `struct`.
 
-States have the same sibling-tracking capability as `Component`: override `OnSiblingTracked` / `OnSiblingUntracked` to subscribe/unsubscribe to sibling events without tight coupling. The tracker is set up inside the base `OnInit()` and torn down inside the base `OnDispose()` — always call `base.OnInit()` first and `base.OnDispose()` last when overriding those methods.
+States have sibling-tracking capability: override `OnSiblingTracked(IComponent)` / `OnSiblingUntracked(IComponent)`. The tracker is set up inside the base `OnInit()` and torn down inside the base `OnDispose()` — always call `base.OnInit()` first and `base.OnDispose()` last.
 
 ```csharp
 public partial class PlayerStateMachine : StatesMachine<Player>
 {
-    public override void _EnterTree()
+    protected override void OnInit()
     {
-        base._EnterTree();
+        base.OnInit();
         this.SetState<IdleState, IdleState.Params>(new IdleState.Params());
     }
 
@@ -318,44 +356,40 @@ public partial class PlayerStateMachine : StatesMachine<Player>
 
         protected override void OnInit()
         {
-            base.OnInit(); // sets up sibling tracking — always first
-            // subscribe to events, initialise state…
+            base.OnInit();
+            // subscribe to events…
         }
 
-        protected override void OnSiblingTracked(Node node)
+        protected override void OnSiblingTracked(IComponent component)
         {
-            if (node is Velocity velocity)
+            if (component is Velocity velocity)
                 velocity.ValueChanged += this.OnVelocityChanged;
         }
 
-        protected override void OnSiblingUntracked(Node node)
+        protected override void OnSiblingUntracked(IComponent component)
         {
-            if (node is Velocity velocity)
+            if (component is Velocity velocity)
                 velocity.ValueChanged -= this.OnVelocityChanged;
         }
 
-        protected override void OnUpdate(double delta) { /* ... */ }
+        protected override void OnUpdate(double delta) { /* … */ }
 
         protected override void OnDispose()
         {
-            // unsubscribe from events, clean up state…
-            base.OnDispose(); // tears down sibling tracking — always last
+            // clean up…
+            base.OnDispose();
         }
 
         protected override bool ReadyToTransition() => true;
 
-        private void OnVelocityChanged(Vector3 v) { /* ... */ }
+        private void OnVelocityChanged(Vector3 v) { /* … */ }
     }
 }
 ```
 
-- States are pooled via `ElementsPool`; never allocate them with `new` — always call `SetState<TState, TParams>`.
-- `force: true` bypasses the `ReadyToTransition()` guard.
-- Transitions queued with `SetState` are applied at the start of the next `_PhysicsProcess`.
-
 ### Adding a `Utils` class
 
-- No dependency on `ECS.Core` or `ECS.Components`.
+- No dependency on `ECS.Core`, `ECS.Components`, `ECS.Entities`, or `ECS.Interfaces`.
 - Use `sealed` unless subclassing is the explicit design intent.
 - Pool instances with `ElementsPool` when the class has no meaningful constructor parameters and is allocated frequently.
 
@@ -373,11 +407,21 @@ A successful build prints `Build succeeded.` with `0 Error(s)`. If there are any
 
 ---
 
+## Post-task checklist
+
+After completing any task:
+
+1. Run `dotnet build` and confirm `0 Error(s)` and `0 Warning(s)`.
+2. If the change affects the public API, repository layout, architecture, conventions, or patterns, **update this `AGENTS.md` file** in the same commit.
+3. If the change affects user-facing documentation, **update `.github/README.md`** in the same commit.
+
+---
+
 ## Commit conventions
 
 - Format: `type(Scope): description` — e.g., `feat(Velocity): add Accelerate method`.
 - Lowercase `type`: `feat`, `fix`, `refactor`, `docs`, `chore`.
 - Scope is the primary class or subsystem affected (PascalCase).
 - One logical change per commit.
-- **Always update `.github/README.md` in the same commit as the code change it documents.** Never put README changes in a separate commit when they can accompany the code commit.
+- **Always update `.github/README.md` and `AGENTS.md` in the same commit as the code change they document.** Never put documentation changes in a separate commit when they can accompany the code commit.
 - To amend a past commit, use `git commit --fixup=<sha>` then `git rebase -i --autosquash <parent-sha>`.

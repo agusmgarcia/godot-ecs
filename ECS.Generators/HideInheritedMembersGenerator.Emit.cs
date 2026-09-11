@@ -9,16 +9,6 @@ public sealed partial class HideInheritedMembersGenerator
     private static readonly SymbolDisplayFormat _fqf =
         SymbolDisplayFormat.FullyQualifiedFormat;
 
-    // Godot lifecycle methods that receive special treatment: instead of a
-    // plain forwarding body, they also call the corresponding ECS hook.
-    private static readonly Dictionary<string, string> _lifecycleHooks =
-        new(StringComparer.Ordinal)
-        {
-            ["_EnterTree"]      = "OnInit",
-            ["_PhysicsProcess"] = "OnUpdate",
-            ["_ExitTree"]       = "OnDispose",
-        };
-
     private static void EmitMember(StringBuilder sb, MemberToHide mth)
     {
         sb.AppendLine("        /// <inheritdoc/>");
@@ -79,13 +69,6 @@ public sealed partial class HideInheritedMembersGenerator
         var keyword     = isVirtual ? "sealed override" : "new";
         var sig         = $"        public {keyword} {ret} {method.Name}{tpDecl}({paramList}){constraints}";
 
-        // Special lifecycle methods get an extra hook call in their body.
-        if (isVirtual && _lifecycleHooks.TryGetValue(method.Name, out var hookName))
-        {
-            EmitLifecycleMethod(sb, sig, method, argList, hookName);
-            return;
-        }
-
         if (method.ReturnsVoid)
         {
             sb.AppendLine(sig);
@@ -98,35 +81,6 @@ public sealed partial class HideInheritedMembersGenerator
             sb.AppendLine($"{sig} =>");
             sb.AppendLine($"            base.{method.Name}{tpDecl}({argList});");
         }
-    }
-
-    // _EnterTree  : base first, then OnInit()
-    // _PhysicsProcess: base first, then OnUpdate(delta)
-    // _ExitTree   : OnDispose() first, then base
-    private static void EmitLifecycleMethod(
-        StringBuilder sb,
-        string sig,
-        IMethodSymbol method,
-        string argList,
-        string hookName)
-    {
-        sb.AppendLine(sig);
-        sb.AppendLine("        {");
-
-        if (method.Name == "_ExitTree")
-        {
-            sb.AppendLine($"            this.{hookName}();");
-            sb.AppendLine($"            base.{method.Name}({argList});");
-        }
-        else
-        {
-            // _EnterTree and _PhysicsProcess: base call comes first.
-            var hookArgs = hookName == "OnUpdate" ? argList : string.Empty;
-            sb.AppendLine($"            base.{method.Name}({argList});");
-            sb.AppendLine($"            this.{hookName}({hookArgs});");
-        }
-
-        sb.AppendLine("        }");
     }
 
     private static void EmitEvent(StringBuilder sb, IEventSymbol evt, bool isVirtual)

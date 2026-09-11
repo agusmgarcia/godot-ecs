@@ -1,4 +1,5 @@
 using ECS.Core;
+using ECS.Interfaces;
 using Godot;
 
 namespace ECS.Components;
@@ -39,13 +40,17 @@ public partial class Rotation : Component<Vector3>
     }
 
     /// <inheritdoc/>
-    protected override void OnSiblingTracked(Node node)
+    protected override void OnSiblingTracked(IComponent component)
     {
-        if (node is Velocity velocity)
+        base.OnSiblingTracked(component);
+
+        if (component is Velocity velocity)
         {
             velocity.ValueChanged += this.OnVelocityChanged;
             this.OnVelocityChanged(velocity.Value);
         }
+
+        // TODO: we could track position component, so we don't have to access it everytime.
     }
 
     /// <inheritdoc/>
@@ -53,7 +58,9 @@ public partial class Rotation : Component<Vector3>
     {
         base.OnUpdate(delta);
 
-        var direction = this.Target - base.Entity!.GlobalPosition;
+        // TODO: instead of casting the entity, do base.Entity.Components.GetOrNull<Position>();
+        var node = (Node3D)base.Entity!;
+        var direction = this.Target - node.GlobalPosition;
 
         var targetPitch = Mathf.Atan2(-direction.Y, new Vector2(direction.X, direction.Z).Length());
         var targetYaw = Mathf.Atan2(direction.X, direction.Z);
@@ -66,20 +73,30 @@ public partial class Rotation : Component<Vector3>
             Mathf.LerpAngle(base.Value.Z, targetRoll, weight));
     }
 
-    private void OnVelocityChanged(Vector3 velocity) =>
-        this.Target = base.Entity!.GlobalPosition + velocity + base.Entity.GlobalBasis.Z;
+    private void OnVelocityChanged(Vector3 velocity)
+    {
+        // TODO: instead of casting the entity, do base.Entity.Components.GetOrNull<Position>();
+        // TODO: instead of casting the entity, do this.Orientation.Z;
+        // TODO: make casting optional.
+        var node = (Node3D)base.Entity!;
+        this.Target = node.GlobalPosition + velocity + node.GlobalBasis.Z;
+    }
 
     private void OnRotationChanged(Vector3 rotation) =>
-        base.Entity!.Rotation = rotation;
+        ((Node3D)base.Entity!).Rotation = rotation;
 
     /// <inheritdoc/>
-    protected override void OnSiblingUntracked(Node node)
+    protected override void OnSiblingUntracked(IComponent component)
     {
-        if (node is Velocity velocity)
+        // TODO: we could untrack position component, so we don't have to access it everytime.
+
+        if (component is Velocity velocity)
         {
             this.OnVelocityChanged(velocity.Value);
             velocity.ValueChanged -= this.OnVelocityChanged;
         }
+
+        base.OnSiblingUntracked(component);
     }
 
     /// <inheritdoc/>
