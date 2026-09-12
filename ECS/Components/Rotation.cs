@@ -34,6 +34,15 @@ public partial class Rotation : Component<Vector3>
     public Vector3 Forward =>
         (base.Entity as Node3D)?.Basis.Z ?? Vector3.Forward;
 
+    /// <inheritdoc/>
+    public new Vector3 Value
+    {
+        get => base.Value;
+        internal protected set => base.Value = value;
+    }
+
+    internal bool NotificationFromParent { private get; set; }
+
     private Position? _position;
     private Velocity? _velocity;
     private Vector3 _target;
@@ -43,6 +52,12 @@ public partial class Rotation : Component<Vector3>
     /// </summary>
     public Rotation()
         : base(Vector3.Zero) { }
+
+    /// <summary>
+    /// // TODO: document this.
+    /// </summary>
+    public void LookAt(in Vector3 target) =>
+        this._target = target;
 
     /// <inheritdoc/>
     protected override void OnInit()
@@ -101,8 +116,11 @@ public partial class Rotation : Component<Vector3>
     private void OnVelocityChanged(Vector3 velocity) =>
         this._target = (this._position?.Value ?? Vector3.Zero) + velocity + this.Forward;
 
-    private void OnRotationChanged(Vector3 rotation) =>
-        (base.Entity as Node3D)?.Rotation = rotation;
+    private void OnRotationChanged(Vector3 rotation)
+    {
+        if (!this.NotificationFromParent)
+            (base.Entity as Node3D)?.Rotation = rotation;
+    }
 
     /// <inheritdoc/>
     protected override void OnSiblingUntracked(IComponent component)

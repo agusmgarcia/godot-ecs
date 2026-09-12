@@ -90,12 +90,52 @@ public sealed class EntityGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}        base._EnterTree();");
             if (!own.Contains("Parent"))
                 sb.AppendLine($"{indent}        this.Parent = base.GetParent<global::ECS.Interfaces.IEntity>();");
+            sb.AppendLine($"{indent}        base.SetNotifyLocalTransform(true);");
             sb.AppendLine($"{indent}        this._componentsTracker.NodeTracked += this.OnComponentTracked;");
             sb.AppendLine($"{indent}        this._componentsTracker.NodeUntracked += this.OnComponentUntracked;");
-            sb.AppendLine($"{indent}        this._componentsTracker.Track((global::Godot.Node)this);");
+            sb.AppendLine($"{indent}        this._componentsTracker.Track(this);");
             sb.AppendLine($"{indent}        this._childrenTracker.NodeTracked += this.OnChildTracked;");
             sb.AppendLine($"{indent}        this._childrenTracker.NodeUntracked += this.OnChildUntracked;");
-            sb.AppendLine($"{indent}        this._childrenTracker.Track((global::Godot.Node)this);");
+            sb.AppendLine($"{indent}        this._childrenTracker.Track(this);");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
+        }
+
+        // --- _PhysicsProcess ---
+        if (!own.Contains("_PhysicsProcess"))
+        {
+            sb.AppendLine($"{indent}    /// <inheritdoc/>");
+            sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+            sb.AppendLine($"{indent}    public sealed override void _PhysicsProcess(double delta)");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        base._PhysicsProcess(delta);");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
+        }
+
+        // --- _Notification ---
+        if (!own.Contains("_Notification"))
+        {
+            sb.AppendLine($"{indent}    /// <inheritdoc/>");
+            sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+            sb.AppendLine($"{indent}    public sealed override void _Notification(int what)");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        if (what == global::Godot.Node3D.NotificationLocalTransformChanged)");
+            sb.AppendLine($"{indent}        {{");
+            sb.AppendLine($"{indent}            foreach (var position in this.Components.GetAll<global::ECS.Components.Position>())");
+            sb.AppendLine($"{indent}            {{");
+            sb.AppendLine($"{indent}                position.NotificationFromParent = true;");
+            sb.AppendLine($"{indent}                position.Value = base.Position;");
+            sb.AppendLine($"{indent}                position.NotificationFromParent = false;");
+            sb.AppendLine($"{indent}            }}");
+            sb.AppendLine();
+            sb.AppendLine($"{indent}            foreach (var rotation in this.Components.GetAll<global::ECS.Components.Rotation>())");
+            sb.AppendLine($"{indent}            {{");
+            sb.AppendLine($"{indent}                rotation.NotificationFromParent = true;");
+            sb.AppendLine($"{indent}                rotation.Value = base.Rotation;");
+            sb.AppendLine($"{indent}                rotation.NotificationFromParent = false;");
+            sb.AppendLine($"{indent}            }}");
+            sb.AppendLine($"{indent}        }}");
             sb.AppendLine($"{indent}    }}");
             sb.AppendLine();
         }
@@ -113,6 +153,7 @@ public sealed class EntityGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}        this._componentsTracker.Untrack();");
             sb.AppendLine($"{indent}        this._componentsTracker.NodeUntracked -= this.OnComponentUntracked;");
             sb.AppendLine($"{indent}        this._componentsTracker.NodeTracked -= this.OnComponentTracked;");
+            sb.AppendLine($"{indent}        base.SetNotifyLocalTransform(false);");
             if (!own.Contains("Parent"))
                 sb.AppendLine($"{indent}        this.Parent = null;");
             sb.AppendLine($"{indent}        base._ExitTree();");

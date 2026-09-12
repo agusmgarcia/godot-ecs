@@ -8,7 +8,9 @@ namespace ECS.Core;
 /// </summary>
 [GlobalClass]
 [HideInheritedMembers("Name")]
-public partial class Entity : Node, IEntity
+// TODO: Right now based on how EntityGenerator is built, Entity requires to be Node3D.
+// I would like to spend some time investigating if it could be converted into a Node.
+public partial class Entity : Node3D, IEntity
 {
     string INode.Name => base.Name;
 }

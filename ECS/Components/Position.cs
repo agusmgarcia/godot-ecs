@@ -9,6 +9,15 @@ namespace ECS.Components;
 [GlobalClass]
 public partial class Position : Component<Vector3>
 {
+    /// <inheritdoc/>
+    public new Vector3 Value
+    {
+        get => base.Value;
+        internal protected set => base.Value = value;
+    }
+
+    internal bool NotificationFromParent { private get; set; }
+
     /// <summary>
     /// // TODO: document this.
     /// </summary>
@@ -24,8 +33,11 @@ public partial class Position : Component<Vector3>
         this.OnPositionChanged((base.Entity as Node3D)?.Position ?? Vector3.Zero);
     }
 
-    private void OnPositionChanged(Vector3 position) =>
-        (base.Entity as Node3D)?.Position = position;
+    private void OnPositionChanged(Vector3 position)
+    {
+        if (!this.NotificationFromParent)
+            (base.Entity as Node3D)?.Position = position;
+    }
 
     /// <inheritdoc/>
     protected override void OnDispose()
