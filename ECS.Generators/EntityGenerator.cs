@@ -80,6 +80,30 @@ public sealed class EntityGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
+        // --- AddComponent ---
+        if (!own.Contains("AddComponent"))
+        {
+            sb.AppendLine($"{indent}    /// <summary>");
+            sb.AppendLine($"{indent}    /// // TODO: document this.");
+            sb.AppendLine($"{indent}    /// </summary>");
+            sb.AppendLine($"{indent}    protected virtual void AddComponent<TComponent>(TComponent component)");
+            sb.AppendLine($"{indent}        where TComponent : global::Godot.Node, global::ECS.Interfaces.IComponent =>");
+            sb.AppendLine($"{indent}          base.AddChild(component);");
+            sb.AppendLine();
+        }
+
+        // --- RemoveComponent ---
+        if (!own.Contains("RemoveComponent"))
+        {
+            sb.AppendLine($"{indent}    /// <summary>");
+            sb.AppendLine($"{indent}    /// // TODO: document this.");
+            sb.AppendLine($"{indent}    /// </summary>");
+            sb.AppendLine($"{indent}    protected virtual void RemoveComponent<TComponent>(TComponent component)");
+            sb.AppendLine($"{indent}        where TComponent : global::Godot.Node, global::ECS.Interfaces.IComponent =>");
+            sb.AppendLine($"{indent}          base.RemoveChild(component);");
+            sb.AppendLine();
+        }
+
         // --- _EnterTree ---
         if (!own.Contains("_EnterTree"))
         {
@@ -101,15 +125,26 @@ public sealed class EntityGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
+        // --- _Ready ---
+        if (!own.Contains("_Ready"))
+        {
+            sb.AppendLine($"{indent}    /// <inheritdoc/>");
+            sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+            sb.AppendLine($"{indent}    public sealed override void _Ready()");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        base._Ready();");
+            sb.AppendLine($"{indent}        this.OnInit();");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
+        }
+
         // --- _PhysicsProcess ---
         if (!own.Contains("_PhysicsProcess"))
         {
             sb.AppendLine($"{indent}    /// <inheritdoc/>");
             sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-            sb.AppendLine($"{indent}    public sealed override void _PhysicsProcess(double delta)");
-            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}    public sealed override void _PhysicsProcess(double delta) =>");
             sb.AppendLine($"{indent}        base._PhysicsProcess(delta);");
-            sb.AppendLine($"{indent}    }}");
             sb.AppendLine();
         }
 
@@ -147,6 +182,7 @@ public sealed class EntityGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
             sb.AppendLine($"{indent}    public sealed override void _ExitTree()");
             sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        this.OnDispose();");
             sb.AppendLine($"{indent}        this._childrenTracker.Untrack();");
             sb.AppendLine($"{indent}        this._childrenTracker.NodeUntracked -= this.OnChildUntracked;");
             sb.AppendLine($"{indent}        this._childrenTracker.NodeTracked -= this.OnChildTracked;");
@@ -157,23 +193,48 @@ public sealed class EntityGenerator : IIncrementalGenerator
             if (!own.Contains("Parent"))
                 sb.AppendLine($"{indent}        this.Parent = null;");
             sb.AppendLine($"{indent}        base._ExitTree();");
+            sb.AppendLine($"{indent}        base.RequestReady();");
             sb.AppendLine($"{indent}    }}");
             sb.AppendLine();
         }
 
-        // --- Private tracker callbacks ---
+        // --- Virtual hooks ---
+        if (!own.Contains("OnInit"))
+        {
+            sb.AppendLine($"{indent}    /// <summary>");
+            sb.AppendLine($"{indent}    /// Called once after the component enters the scene tree and internal state is ready.");
+            sb.AppendLine($"{indent}    /// </summary>");
+            sb.AppendLine($"{indent}    protected virtual void OnInit() {{ }}");
+            sb.AppendLine();
+        }
+        if (!own.Contains("OnDispose"))
+        {
+            sb.AppendLine($"{indent}    /// <summary>");
+            sb.AppendLine($"{indent}    /// Called once before the component exits the scene tree and internal state is torn down.");
+            sb.AppendLine($"{indent}    /// </summary>");
+            sb.AppendLine($"{indent}    protected virtual void OnDispose() {{ }}");
+            sb.AppendLine();
+        }
         if (!own.Contains("OnComponentTracked"))
         {
-            sb.AppendLine($"{indent}    private void OnComponentTracked(global::ECS.Interfaces.IComponent component) =>");
+            sb.AppendLine($"{indent}    /// <summary>");
+            sb.AppendLine($"{indent}    /// // TODO: document this.");
+            sb.AppendLine($"{indent}    /// </summary>");
+            sb.AppendLine($"{indent}    protected virtual void OnComponentTracked(global::ECS.Interfaces.IComponent component) =>");
             sb.AppendLine($"{indent}        this._components.Add(component);");
             sb.AppendLine();
         }
         if (!own.Contains("OnComponentUntracked"))
         {
-            sb.AppendLine($"{indent}    private void OnComponentUntracked(global::ECS.Interfaces.IComponent component) =>");
+            sb.AppendLine($"{indent}    /// <summary>");
+            sb.AppendLine($"{indent}    /// // TODO: document this.");
+            sb.AppendLine($"{indent}    /// </summary>");
+            sb.AppendLine($"{indent}    protected virtual void OnComponentUntracked(global::ECS.Interfaces.IComponent component) =>");
             sb.AppendLine($"{indent}        this._components.Remove(component);");
             sb.AppendLine();
         }
+
+        // --- Private tracker callbacks ---
         if (!own.Contains("OnChildTracked"))
         {
             sb.AppendLine($"{indent}    private void OnChildTracked(global::ECS.Interfaces.IEntity entity) {{ }}");

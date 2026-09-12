@@ -13,7 +13,7 @@ public sealed partial class HideInheritedMembersGenerator
     // Godot lifecycle methods owned by role generators when a role interface is present.
     private static readonly HashSet<string> _lifecycleNames = new(StringComparer.Ordinal)
     {
-        "_EnterTree", "_ExitTree", "_PhysicsProcess",
+        "_EnterTree", "_ExitTree", "_PhysicsProcess", "_Ready"
     };
 
     private static HashSet<string> GetWhitelist(INamedTypeSymbol classSymbol, string attrFqn)

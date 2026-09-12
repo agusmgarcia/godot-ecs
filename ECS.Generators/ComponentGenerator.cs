@@ -84,12 +84,22 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}    {{");
             sb.AppendLine($"{indent}        base._EnterTree();");
             if (!own.Contains("Entity"))
-                sb.AppendLine($"{indent}        this.Entity = base.GetOwner<global::ECS.Interfaces.IEntity>();");
+                sb.AppendLine($"{indent}        this.Entity = this.FindEntity();");
             sb.AppendLine($"{indent}        this._siblingsTracker.NodeTracked += this.OnSiblingTrackedInternal;");
             sb.AppendLine($"{indent}        this._siblingsTracker.NodeUntracked += this.OnSiblingUntrackedInternal;");
-            sb.AppendLine($"{indent}        this._siblingsTracker.Track((global::Godot.Node)this.Entity!);");
+            sb.AppendLine($"{indent}        this._siblingsTracker.Track((global::Godot.Node)this.Entity);");
             sb.AppendLine($"{indent}        this.OnInit();");
             sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
+        }
+
+        // --- _Ready ---
+        if (!own.Contains("_Ready"))
+        {
+            sb.AppendLine($"{indent}    /// <inheritdoc/>");
+            sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+            sb.AppendLine($"{indent}    public sealed override void _Ready() =>");
+            sb.AppendLine($"{indent}        base._Ready();");
             sb.AppendLine();
         }
 
@@ -140,6 +150,25 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}    {{");
             sb.AppendLine($"{indent}        this._siblings.Remove(component);");
             sb.AppendLine($"{indent}        this.OnSiblingUntracked(component);");
+            sb.AppendLine($"{indent}    }}");
+            sb.AppendLine();
+        }
+
+        if (!own.Contains("FindEntity"))
+        {
+            sb.AppendLine($"{indent}    private global::ECS.Interfaces.IEntity FindEntity()");
+            sb.AppendLine($"{indent}    {{");
+            sb.AppendLine($"{indent}        global::Godot.Node? instance = this;");
+            sb.AppendLine($"{indent}        do");
+            sb.AppendLine($"{indent}        {{");
+            sb.AppendLine($"{indent}            var owner = instance.GetOwnerOrNull<global::ECS.Interfaces.IEntity>();");
+            sb.AppendLine($"{indent}            if (owner != null)");
+            sb.AppendLine($"{indent}                return owner;");
+            sb.AppendLine();
+            sb.AppendLine($"{indent}            instance = instance.GetParent();");
+            sb.AppendLine($"{indent}        }} while (instance != null);");
+            sb.AppendLine();
+            sb.AppendLine($"{indent}        throw new InvalidOperationException($\"The component {{this.Name}} should contain an owner whose implements the interface {{typeof(global::ECS.Interfaces.IEntity).Name}}\");");
             sb.AppendLine($"{indent}    }}");
             sb.AppendLine();
         }

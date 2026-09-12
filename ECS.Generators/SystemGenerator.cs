@@ -80,6 +80,16 @@ public sealed class SystemGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
+        // --- _Ready ---
+        if (!own.Contains("_Ready"))
+        {
+            sb.AppendLine($"{indent}    /// <inheritdoc/>");
+            sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
+            sb.AppendLine($"{indent}    public sealed override void _Ready() =>");
+            sb.AppendLine($"{indent}        base._Ready();");
+            sb.AppendLine();
+        }
+
         // --- _PhysicsProcess ---
         if (!own.Contains("_PhysicsProcess"))
         {
