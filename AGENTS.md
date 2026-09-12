@@ -55,13 +55,18 @@ ECS/
 │   └── System.cs                    — base system (Node + ISystem)
 ├── Entities/
 │   ├── CharacterBody3D.cs           — CharacterBody3D entity
-│   └── Area3D.cs                    — Area3D entity
+│   ├── Area3D.cs                    — Area3D entity
+│   └── StatesMachine.cs             — pooled finite state machine entity
 ├── Components/
 │   ├── Main.cs                      — marker component
 │   ├── Height.cs                    — float value component
-│   ├── Velocity.cs                  — 3D physics velocity
+│   ├── Position.cs                  — 3D world position
 │   ├── Rotation.cs                  — smooth look-at rotation
-│   ├── StatesMachine.cs             — generic pooled state machine
+│   ├── Scale.cs                     — 3D scale
+│   ├── Velocity.cs                  — 3D physics velocity
+│   ├── FloorDetector.cs             — floor-contact detection
+│   ├── State.cs                     — base class for StatesMachine states
+│   ├── State.TStateParams.cs        — parameterised state variant
 │   ├── AnimationPlayer.cs           — Godot AnimationPlayer component
 │   └── CollisionShape3D.cs          — Godot CollisionShape3D component
 └── Utils/
@@ -104,20 +109,25 @@ The generators project targets `netstandard2.0` and is wired into `ECS.csproj` a
 
 - Shadows non-virtual public members with `new` + `[EditorBrowsable(Never)]`.
 - Seals virtual/override/abstract public members with `sealed override` + `[EditorBrowsable(Never)]`.
-- When the class also implements `IEntity`, `IComponent`, or `ISystem`, the three Godot lifecycle methods (`_EnterTree`, `_PhysicsProcess`, `_ExitTree`) are **skipped** — the corresponding role generator owns them instead.
+- When the class also implements `IEntity`, `IComponent`, or `ISystem`, the four Godot lifecycle methods (`_EnterTree`, `_Ready`, `_PhysicsProcess`, `_ExitTree`) are **skipped** — the corresponding role generator owns them instead.
 
 **`EntityGenerator`** — triggered by `IEntity`. Generates (when absent from the hand-written class):
 
 - `TypedSet<IComponent>` + `NodesTracker<IComponent>` (`DirectChildren = true`) for `Components`.
 - `NodesTracker<IEntity>` (`DirectChildren = true`) for `Children` (exposed via `.Nodes`).
-- `IEntity? Parent` property (resolved via `GetParent<IEntity>()`).
-- `sealed override _EnterTree` / `_ExitTree` with `[EditorBrowsable(Never)]` — sets up/tears down both trackers and resolves `Parent`.
-- Private tracker callbacks for the `TypedSet` add/remove.
-- Entity has **no** `OnInit`/`OnUpdate`/`OnDispose` hooks — it is a pure container.
+- `IEntity? Parent` property (resolved via `GetParentOrNull<IEntity>()`).
+- `protected virtual AddComponent<TComponent>()` / `RemoveComponent<TComponent>()` helpers that call `AddChild`/`RemoveChild`.
+- `sealed override _EnterTree` — resolves `Parent`, enables local-transform notifications, starts both trackers.
+- `sealed override _Ready` — calls `OnInit()`.
+- `sealed override _PhysicsProcess` — no-op (calls `base._PhysicsProcess`).
+- `sealed override _Notification` — on `NotificationLocalTransformChanged`, pushes the entity's current `Position` and `Rotation` into any attached `Position`/`Rotation` components (with the `NotificationFromParent` guard to prevent feedback loops).
+- `sealed override _ExitTree` — calls `OnDispose()`, tears down both trackers, disables local-transform notifications, clears `Parent`, calls `base._ExitTree()`, and calls `base.RequestReady()` so the entity re-enters the ready state if re-added to the tree.
+- Virtual hooks: `OnInit`, `OnDispose`, `OnComponentTracked(IComponent)`, `OnComponentUntracked(IComponent)`.
+- Private tracker callbacks for child-entity tracking (`OnChildTracked`, `OnChildUntracked`).
 
 **`ComponentGenerator`** — triggered by `IComponent`. Generates (when absent):
 
-- `IEntity? Entity` property (resolved via `GetOwner<IEntity>()`).
+- `IEntity? Entity` property (resolved via `FindEntity()`, which walks up the scene tree looking for an owner that implements `IEntity`).
 - `TypedSet<IComponent>` + `NodesTracker<IComponent>` (`DirectChildren = true`) for `Siblings`.
 - `sealed override _EnterTree` / `_PhysicsProcess` / `_ExitTree` with `[EditorBrowsable(Never)]` — lifecycle bridge calling `OnInit()` / `OnUpdate(delta)` / `OnDispose()`.
 - Private tracker callbacks that update the `TypedSet` and forward to the virtual hooks.
@@ -134,7 +144,7 @@ The generators project targets `netstandard2.0` and is wired into `ECS.csproj` a
 
 ### Core classes (`Core/`)
 
-**`Entity`** — `[GlobalClass] [HideInheritedMembers("Name")] partial class Entity : Node, IEntity`. Body contains only the explicit `INode.Name` implementation. All entity boilerplate is generated.
+**`Entity`** — `[GlobalClass] [HideInheritedMembers("Name")] partial class Entity : Node3D, IEntity`. Body contains only the explicit `INode.Name` implementation. All entity boilerplate is generated.
 
 **`Component`** — `[GlobalClass] [HideInheritedMembers("Name")] partial class Component : Node, IComponent`. Body contains only the explicit `INode.Name` implementation. All component boilerplate is generated.
 
@@ -203,22 +213,43 @@ Classes that extend a specific Godot node type and implement `IComponent`. All c
 
 ### Lifecycle hooks (generated)
 
-Consumers do **not** override `_EnterTree`, `_ExitTree`, or `_PhysicsProcess`. These are `sealed override` by the generators. Instead, override the ECS hooks:
+Consumers do **not** override `_EnterTree`, `_Ready`, `_ExitTree`, or `_PhysicsProcess`. These are `sealed override` by the generators. Instead, override the ECS hooks:
 
-| Godot method (sealed) | ECS hook (virtual) | Available on            |
-| --------------------- | ------------------ | ----------------------- |
-| `_EnterTree`          | `OnInit()`         | `IComponent`, `ISystem` |
-| `_PhysicsProcess`     | `OnUpdate(double)` | `IComponent`, `ISystem` |
-| `_ExitTree`           | `OnDispose()`      | `IComponent`, `ISystem` |
+| Godot method (sealed) | ECS hook (virtual)     | Available on                      |
+| --------------------- | ---------------------- | --------------------------------- |
+| `_Ready`              | `OnInit()`             | `IComponent`, `ISystem`, `IEntity`|
+| `_PhysicsProcess`     | `OnUpdate(double)`     | `IComponent`, `ISystem`           |
+| `_ExitTree`           | `OnDispose()`          | `IComponent`, `ISystem`, `IEntity`|
 
-`IEntity` has **no** lifecycle hooks — it is a pure container. Its `_EnterTree`/`_ExitTree` only set up the trackers.
+**Lifecycle order for entities:**
+
+**`_EnterTree` (sealed, generated):**
+
+1. `base._EnterTree()`.
+2. Resolve `Parent` via `GetParentOrNull<IEntity>()`.
+3. Enable local-transform notifications (`SetNotifyLocalTransform(true)`).
+4. Start component tracker and child-entity tracker.
+
+**`_Ready` (sealed, generated):**
+
+1. `base._Ready()`.
+2. Call `this.OnInit()`.
+
+**`_ExitTree` (sealed, generated):**
+
+1. Call `this.OnDispose()`.
+2. Stop child-entity tracker, then component tracker.
+3. Disable local-transform notifications.
+4. Clear `Parent` to null.
+5. `base._ExitTree()`.
+6. `base.RequestReady()` (so the entity re-enters ready state if re-parented).
 
 **Lifecycle order for components:**
 
 **`_EnterTree` (sealed, generated):**
 
 1. `base._EnterTree()`.
-2. Resolve `Entity` via `GetOwner<IEntity>()`.
+2. Resolve `Entity` via `FindEntity()` (walks up the tree until an `IEntity` owner is found).
 3. Start sibling tracker.
 4. Call `this.OnInit()`.
 
@@ -337,12 +368,14 @@ public partial class Area3D : Godot.Area3D, IEntity
 
 ### Adding a state to a `StatesMachine`
 
-States are nested `abstract class` types inside the concrete state machine. Use `BaseState` for stateless states and `BaseState<TStateParams>` when data must be passed on transition. `TStateParams` must be a `struct`.
+`StatesMachine` extends `Entity` (lives in `Entities/`). Subclass it to create a concrete state machine; states are separate classes that extend `State` (for parameter-less transitions) or `State<TStateParams>` (when a `struct` of data must be passed on transition).
 
-States have sibling-tracking capability: override `OnSiblingTracked(IComponent)` / `OnSiblingUntracked(IComponent)`. The tracker is set up inside the base `OnInit()` and torn down inside the base `OnDispose()` — always call `base.OnInit()` first and `base.OnDispose()` last.
+States are pooled via `ElementsPool` — never instantiate them with `new`; always transition via `SetState`. The state's full component lifecycle (`OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingTracked`, `OnSiblingUntracked`) runs exactly like any other component because `State` extends `Component`.
+
+Always call `base.OnInit()` first and `base.OnDispose()` last.
 
 ```csharp
-public partial class PlayerStateMachine : StatesMachine<Player>
+public partial class PlayerStateMachine : StatesMachine
 {
     protected override void OnInit()
     {
@@ -350,7 +383,7 @@ public partial class PlayerStateMachine : StatesMachine<Player>
         this.SetState<IdleState, IdleState.Params>(new IdleState.Params());
     }
 
-    public sealed class IdleState : BaseState<IdleState.Params>
+    public sealed class IdleState : State<IdleState.Params>
     {
         public struct Params { }
 
@@ -362,6 +395,7 @@ public partial class PlayerStateMachine : StatesMachine<Player>
 
         protected override void OnSiblingTracked(IComponent component)
         {
+            base.OnSiblingTracked(component);
             if (component is Velocity velocity)
                 velocity.ValueChanged += this.OnVelocityChanged;
         }
@@ -370,6 +404,7 @@ public partial class PlayerStateMachine : StatesMachine<Player>
         {
             if (component is Velocity velocity)
                 velocity.ValueChanged -= this.OnVelocityChanged;
+            base.OnSiblingUntracked(component);
         }
 
         protected override void OnUpdate(double delta) { /* … */ }

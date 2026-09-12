@@ -4,13 +4,13 @@ using Godot;
 namespace ECS.Components;
 
 /// <summary>
-/// // TODO: document this.
+/// Component that tracks whether the owning <see cref="Godot.CharacterBody3D"/> entity is currently on the floor; exposes the result as a <c>bool</c> value updated every physics frame.
 /// </summary>
 [GlobalClass]
 public partial class FloorDetector : Component<bool>
 {
     /// <summary>
-    /// // TODO: document this.
+    /// Initialises the component with an initial value of <c>false</c>.
     /// </summary>
     public FloorDetector()
         : base(false) { }

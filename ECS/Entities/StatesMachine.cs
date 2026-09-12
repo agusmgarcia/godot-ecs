@@ -7,13 +7,13 @@ using Godot;
 namespace ECS.Entities;
 
 /// <summary>
-/// Generic finite state machine component that pools states and processes queued transitions each physics frame.
+/// Entity that acts as a pooled finite state machine; manages a single active <see cref="ECS.Components.State"/> child component and transitions between states each physics frame.
 /// </summary>
 [GlobalClass]
 public partial class StatesMachine : Entity
 {
     /// <summary>
-    /// Enqueues a transition to <typeparamref name="TNewState"/>; the transition is applied on the next physics frame.
+    /// Transitions to <typeparamref name="TNewState"/>, pooling the current state and initialising the new one with <paramref name="stateParams"/>; no-ops if the current state blocks transitions via <see cref="ECS.Components.State.ReadyToTransition"/> and <paramref name="force"/> is <c>false</c>.
     /// </summary>
     protected void SetState<TNewState, TStateParams>(in TStateParams stateParams, bool force = false)
         where TNewState : State<TStateParams>, new()

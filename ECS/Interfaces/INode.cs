@@ -1,7 +1,7 @@
 namespace ECS.Interfaces;
 
 /// <summary>
-/// // TODO: document this.
+/// Base interface for all ECS roles; exposes the node's <see cref="Name"/> so interfaces can be used without a concrete <see cref="Godot.Node"/> reference.
 /// </summary>
 public interface INode
 {

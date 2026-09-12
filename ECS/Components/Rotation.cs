@@ -17,30 +17,35 @@ public partial class Rotation : Component<Vector3>
     public float AngularSpeed { get; protected set; }
 
     /// <summary>
-    /// // TODO: document this.
+    /// The entity's current right axis (<see cref="Godot.Basis.X"/>); <see cref="Vector3.Right"/> when outside the scene tree.
     /// </summary>
     public Vector3 Right =>
         (base.Entity as Node3D)?.Basis.X ?? Vector3.Right;
 
     /// <summary>
-    /// // TODO: document this.
+    /// The entity's current up axis (<see cref="Godot.Basis.Y"/>); <see cref="Vector3.Up"/> when outside the scene tree.
     /// </summary>
     public Vector3 Up =>
         (base.Entity as Node3D)?.Basis.Y ?? Vector3.Up;
 
     /// <summary>
-    /// // TODO: document this.
+    /// The entity's current forward axis (<see cref="Godot.Basis.Z"/>); <see cref="Vector3.Forward"/> when outside the scene tree.
     /// </summary>
     public Vector3 Forward =>
         (base.Entity as Node3D)?.Basis.Z ?? Vector3.Forward;
 
-    /// <inheritdoc/>
+    /// <summary>
+    /// The current Euler rotation in radians; settable from within the assembly only.
+    /// </summary>
     public new Vector3 Value
     {
         get => base.Value;
         internal protected set => base.Value = value;
     }
 
+    /// <summary>
+    /// When <c>true</c>, the next <see cref="ECS.Core.Component{TValue}.ValueChanged"/> callback originates from a scene-tree transform notification and must not write back to the entity.
+    /// </summary>
     internal bool NotificationFromParent { private get; set; }
 
     private Position? _position;
@@ -54,7 +59,7 @@ public partial class Rotation : Component<Vector3>
         : base(Vector3.Zero) { }
 
     /// <summary>
-    /// // TODO: document this.
+    /// Sets the world-space <paramref name="target"/> position the entity will rotate to face each physics frame.
     /// </summary>
     public void LookAt(in Vector3 target) =>
         this._target = target;

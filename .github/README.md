@@ -8,8 +8,8 @@ A lightweight Entity Component System (ECS) framework for [Godot 4](https://godo
 ECS/
 ├── Interfaces/  Role marker interfaces: IEntity, IComponent, ISystem.
 ├── Core/        Base classes: Entity, Component, System.
-├── Components/  Ready-to-use components: velocity, rotation, height, state machine, animation player, collision shape.
-├── Entities/    Ready-to-use entity variants: CharacterBody3D, Area3D.
+├── Components/  Ready-to-use components: position, rotation, scale, velocity, floor detection, state, animation player, collision shape.
+├── Entities/    Ready-to-use entity variants: CharacterBody3D, Area3D, StatesMachine.
 └── Utils/       Low-level utilities: object pooling, typed sets, node tracking.
 ```
 
@@ -27,12 +27,13 @@ The typical scene setup looks like this:
 
 ```txt
 MyScene
-├── MySystem          (implements ISystem)
-└── MyEntity          (implements IEntity)
-    ├── Main          (marker component)
-    ├── Velocity      (physics velocity)
-    ├── Rotation      (look-at rotation)
-    └── MyStateMachine (extends StatesMachine<MyEntity>)
+├── MySystem              (implements ISystem)
+└── MyEntity              (implements IEntity)
+    ├── Main              (marker component)
+    ├── Position          (3D world position)
+    ├── Velocity          (physics velocity)
+    ├── Rotation          (look-at rotation)
+    └── MyStateMachine    (extends StatesMachine)
 ```
 
 ---
@@ -51,7 +52,7 @@ Marker interface for entities. Exposes:
 | `Children`   | `IReadOnlySet<IEntity>`         | Live set of direct child entities.         |
 | `Parent`     | `IEntity?`                      | The parent entity, or `null`.              |
 
-Entity is a pure container — it has no lifecycle hooks (`OnInit`/`OnUpdate`/`OnDispose`).
+The generator also produces `OnInit()` and `OnDispose()` virtual hooks (called from `_Ready` and `_ExitTree` respectively), as well as `AddComponent`/`RemoveComponent` helpers and `OnComponentTracked`/`OnComponentUntracked` callbacks.
 
 ### `IComponent`
 
@@ -85,7 +86,19 @@ Base class for entities. Extends `Node` and implements `IEntity`.
 public partial class Player : Entity { }
 ```
 
-All boilerplate (`Components`, `Children`, `Parent`, trackers) is generated. Access components via:
+All boilerplate (`Components`, `Children`, `Parent`, trackers, lifecycle) is generated.
+
+| Member                              | Description                                                         |
+| ----------------------------------- | ------------------------------------------------------------------- |
+| `Components`                        | Live typed set of direct child components.                          |
+| `Children`                          | Live set of direct child entities.                                  |
+| `Parent`                            | The parent entity, or `null`.                                       |
+| `OnInit()`                          | Called once after the entity enters the scene tree (via `_Ready`).  |
+| `OnDispose()`                       | Called once before the entity exits the scene tree.                 |
+| `OnComponentTracked(IComponent)`    | Called when a direct child component is added.                      |
+| `OnComponentUntracked(IComponent)`  | Called when a direct child component is removed.                    |
+| `AddComponent<TComponent>()`        | Adds a component as a child node.                                   |
+| `RemoveComponent<TComponent>()`     | Removes a child component node.                                     |
 
 ```csharp
 // Look up a component from within another component.
@@ -204,6 +217,67 @@ Ready-to-use entity implementations based on specific Godot node types. Implemen
 | ----------------- | ----------------------- |
 | `CharacterBody3D` | `Godot.CharacterBody3D` |
 | `Area3D`          | `Godot.Area3D`          |
+| `StatesMachine`   | `Entity` (`Node3D`)     |
+
+### `StatesMachine`
+
+A pooled finite state machine that extends `Entity`. Subclass it to create a concrete state machine; the active state is a `State` (or `State<TStateParams>`) component child managed automatically via `AddComponent`/`RemoveComponent`.
+
+```csharp
+public partial class PlayerStateMachine : StatesMachine
+{
+    protected override void OnInit()
+    {
+        base.OnInit();
+        this.SetState<IdleState, IdleState.Params>(new IdleState.Params());
+    }
+
+    public sealed class IdleState : State<IdleState.Params>
+    {
+        public struct Params { }
+
+        protected override void OnInit()
+        {
+            base.OnInit();
+            // subscribe to events...
+        }
+
+        protected override void OnSiblingTracked(IComponent component)
+        {
+            base.OnSiblingTracked(component);
+            if (component is Velocity velocity)
+                velocity.ValueChanged += this.OnVelocityChanged;
+        }
+
+        protected override void OnSiblingUntracked(IComponent component)
+        {
+            if (component is Velocity velocity)
+                velocity.ValueChanged -= this.OnVelocityChanged;
+            base.OnSiblingUntracked(component);
+        }
+
+        protected override void OnUpdate(double delta) { /* ... */ }
+
+        protected override void OnDispose()
+        {
+            // clean up...
+            base.OnDispose();
+        }
+
+        protected override bool ReadyToTransition() => true;
+
+        private void OnVelocityChanged(Vector3 v) { /* ... */ }
+    }
+}
+```
+
+| Member                        | Description                                                                         |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| `SetState<TState, TParams>()` | Transition to a new state, pooling the old one and initialising the new one.        |
+| `ReadyToTransition()`         | Override on a state to block non-forced transitions away from it.                   |
+| `force`                       | Pass `force: true` to `SetState` to bypass `ReadyToTransition()`.                   |
+
+States are pooled via `ElementsPool` — never instantiate them with `new`. Always transition via `SetState`.
 
 ```csharp
 // Add your own entity variant:
@@ -227,6 +301,18 @@ Marker component used to tag an entity as the primary entity of its scene.
 
 Component that stores the entity’s height in metres as an inspector-editable value.
 
+### `Position`
+
+Component that mirrors the entity's world position as a `Vector3` value. Syncs bidirectionally: writing `Value` moves the entity in the scene, and external scene-tree transforms (e.g. physics or editor moves) are pushed back into `Value` via the entity's `_Notification` handler.
+
+> Requires `Entity` to be a `Node3D` (or subclass).
+
+### `Scale`
+
+Component that mirrors the entity's scale as a `Vector3` value. Writing `Value` immediately sets the entity's scale. Defaults to `Vector3.One`.
+
+> Requires `Entity` to be a `Node3D` (or subclass).
+
 ### `Velocity`
 
 Component that drives 3D physics velocity, applying gravity, air friction, and a max speed limit.
@@ -239,76 +325,40 @@ Component that drives 3D physics velocity, applying gravity, air friction, and a
 | `Accelerate()` | Apply an acceleration impulse.  |
 | `Decelerate()` | Apply a deceleration impulse.   |
 
-> Casts `Entity` to `CharacterBody3D` internally to call Godot physics methods.
+> Casts `Entity` to `CharacterBody3D` internally to call Godot physics methods. Integrates with `FloorDetector` when that sibling is present.
+
+### `FloorDetector`
+
+Component that tracks whether the entity is currently on the floor. Wraps `CharacterBody3D.IsOnFloor()` and exposes the result as a `bool` value via `Component<bool>`. Updated every physics frame.
+
+> Requires `Entity` to be a `CharacterBody3D` (or subclass). Used by `Velocity` to disable air friction and gravity when grounded.
 
 ### `Rotation`
 
-Component that smoothly rotates the entity to face a world-space target position each physics frame.
+Component that smoothly rotates the entity to face a world-space target position each physics frame. Syncs bidirectionally with the entity's `Rotation` property (same `NotificationFromParent` guard as `Position`).
 
-| Member         | Description                   |
-| -------------- | ----------------------------- |
-| `AngularSpeed` | Rotation speed (°/s).         |
-| `Target`       | World-space position to face. |
+| Member         | Description                                                    |
+| -------------- | -------------------------------------------------------------- |
+| `AngularSpeed` | Rotation speed (°/s).                                          |
+| `Right`        | Entity's current right axis (`Basis.X`).                       |
+| `Up`           | Entity's current up axis (`Basis.Y`).                          |
+| `Forward`      | Entity's current forward axis (`Basis.Z`).                     |
+| `LookAt()`     | Sets the world-space target position the entity will face.     |
 
-> Casts `Entity` to `Node3D` internally to read/write `GlobalPosition` and `Rotation`.
+Integrates with sibling `Position` and `Velocity` components: when present, the target is automatically offset by the current position and velocity each frame so the entity faces where it is heading.
 
-### `StatesMachine<TEntity>`
+> Requires `Entity` to be a `Node3D` (or subclass).
 
-Generic finite state machine component that pools states and processes queued transitions each physics frame.
+### `State` / `State<TStateParams>`
 
-```csharp
-public partial class PlayerStateMachine : StatesMachine<Player>
-{
-    protected override void OnInit()
-    {
-        base.OnInit();
-        this.SetState<IdleState, IdleState.Params>(new IdleState.Params());
-    }
+Base classes for states managed by `StatesMachine`. Extend `State` for parameter-less states or `State<TStateParams>` when the transition must carry a `struct` of data.
 
-    public sealed class IdleState : BaseState<IdleState.Params>
-    {
-        public struct Params { }
+| Member                  | Description                                                                  |
+| ----------------------- | ---------------------------------------------------------------------------- |
+| `StateParams`           | (`State<TStateParams>` only) The params passed by the last `SetState` call.  |
+| `ReadyToTransition()`   | Return `false` to block non-forced transitions away from this state.         |
 
-        protected override void OnInit()
-        {
-            base.OnInit();
-            // subscribe to events...
-        }
-
-        protected override void OnSiblingTracked(IComponent component)
-        {
-            if (component is Velocity velocity)
-                velocity.ValueChanged += this.OnVelocityChanged;
-        }
-
-        protected override void OnSiblingUntracked(IComponent component)
-        {
-            if (component is Velocity velocity)
-                velocity.ValueChanged -= this.OnVelocityChanged;
-        }
-
-        protected override void OnUpdate(double delta) { /* ... */ }
-
-        protected override void OnDispose()
-        {
-            // clean up...
-            base.OnDispose();
-        }
-
-        protected override bool ReadyToTransition() => true;
-
-        private void OnVelocityChanged(Vector3 v) { /* ... */ }
-    }
-}
-```
-
-| Member                        | Description                               |
-| ----------------------------- | ----------------------------------------- |
-| `SetState<TState, TParams>()` | Enqueue a state transition.               |
-| `Value`                       | The currently active state (or `null`).   |
-| `ReadyToTransition()`         | Override to block non-forced transitions. |
-
-States are pooled via `ElementsPool` — never instantiate them with `new`. Always transition via `SetState`. Use `force: true` to bypass `ReadyToTransition()`.
+States are regular components — they receive the full `OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingTracked`, `OnSiblingUntracked` lifecycle.
 
 ### `AnimationPlayer`
 

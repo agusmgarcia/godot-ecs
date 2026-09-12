@@ -84,7 +84,7 @@ public sealed class EntityGenerator : IIncrementalGenerator
         if (!own.Contains("AddComponent"))
         {
             sb.AppendLine($"{indent}    /// <summary>");
-            sb.AppendLine($"{indent}    /// // TODO: document this.");
+            sb.AppendLine($"{indent}    /// Adds <paramref name=\"component\"/> as a child node of this entity.");
             sb.AppendLine($"{indent}    /// </summary>");
             sb.AppendLine($"{indent}    protected virtual void AddComponent<TComponent>(TComponent component)");
             sb.AppendLine($"{indent}        where TComponent : global::Godot.Node, global::ECS.Interfaces.IComponent =>");
@@ -96,7 +96,7 @@ public sealed class EntityGenerator : IIncrementalGenerator
         if (!own.Contains("RemoveComponent"))
         {
             sb.AppendLine($"{indent}    /// <summary>");
-            sb.AppendLine($"{indent}    /// // TODO: document this.");
+            sb.AppendLine($"{indent}    /// Removes <paramref name=\"component\"/> from this entity's children.");
             sb.AppendLine($"{indent}    /// </summary>");
             sb.AppendLine($"{indent}    protected virtual void RemoveComponent<TComponent>(TComponent component)");
             sb.AppendLine($"{indent}        where TComponent : global::Godot.Node, global::ECS.Interfaces.IComponent =>");
@@ -218,7 +218,7 @@ public sealed class EntityGenerator : IIncrementalGenerator
         if (!own.Contains("OnComponentTracked"))
         {
             sb.AppendLine($"{indent}    /// <summary>");
-            sb.AppendLine($"{indent}    /// // TODO: document this.");
+            sb.AppendLine($"{indent}    /// Called when a direct child <see cref=\"global::ECS.Interfaces.IComponent\"/> enters the scene tree; adds it to <see cref=\"Components\"/> by default.");
             sb.AppendLine($"{indent}    /// </summary>");
             sb.AppendLine($"{indent}    protected virtual void OnComponentTracked(global::ECS.Interfaces.IComponent component) =>");
             sb.AppendLine($"{indent}        this._components.Add(component);");
@@ -227,7 +227,7 @@ public sealed class EntityGenerator : IIncrementalGenerator
         if (!own.Contains("OnComponentUntracked"))
         {
             sb.AppendLine($"{indent}    /// <summary>");
-            sb.AppendLine($"{indent}    /// // TODO: document this.");
+            sb.AppendLine($"{indent}    /// Called when a direct child <see cref=\"global::ECS.Interfaces.IComponent\"/> exits the scene tree; removes it from <see cref=\"Components\"/> by default.");
             sb.AppendLine($"{indent}    /// </summary>");
             sb.AppendLine($"{indent}    protected virtual void OnComponentUntracked(global::ECS.Interfaces.IComponent component) =>");
             sb.AppendLine($"{indent}        this._components.Remove(component);");
