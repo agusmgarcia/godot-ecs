@@ -54,7 +54,7 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}    /// <summary>");
             sb.AppendLine($"{indent}    /// The entity that owns this component; <c>null</c> while outside the scene tree.");
             sb.AppendLine($"{indent}    /// </summary>");
-            sb.AppendLine($"{indent}    protected global::ECS.Interfaces.IEntity? Entity {{ get; private set; }}");
+            sb.AppendLine($"{indent}    public global::ECS.Interfaces.IEntity? Entity {{ get; private set; }}");
             sb.AppendLine();
         }
         if (!own.Contains("_siblings"))
