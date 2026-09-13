@@ -9,7 +9,7 @@ ECS/
 ├── Interfaces/  Role marker interfaces: IEntity, IComponent, ISystem.
 ├── Core/        Base classes: Entity, Component, System.
 ├── Components/  Ready-to-use components: position, rotation, scale, velocity, floor detection, state, animation player, collision shape.
-├── Entities/    Ready-to-use entity variants: CharacterBody3D, Area3D, StatesMachine.
+├── Entities/    Ready-to-use entity variants: CharacterBody3D, Area3D, Model, StatesMachine.
 └── Utils/       Low-level utilities: object pooling, typed sets, node tracking.
 ```
 
@@ -218,11 +218,12 @@ public partial class MovementSystem : System
 
 Ready-to-use entity implementations based on specific Godot node types. Implement `IEntity` — all boilerplate is generated.
 
-| Class             | Extends                 |
-| ----------------- | ----------------------- |
-| `CharacterBody3D` | `Godot.CharacterBody3D` |
-| `Area3D`          | `Godot.Area3D`          |
-| `StatesMachine`   | `Entity` (`Node3D`)     |
+| Class             | Extends                 | Description                                               |
+| ----------------- | ----------------------- | --------------------------------------------------------- |
+| `CharacterBody3D` | `Godot.CharacterBody3D` | Entity with a kinematic physics body.                     |
+| `Area3D`          | `Godot.Area3D`          | Entity with an overlap-detection volume.                  |
+| `Model`           | `Entity` (`Node3D`)     | Entity for purely visual 3D model nodes; no physics body. |
+| `StatesMachine`   | `Entity` (`Node3D`)     | Pooled finite state machine entity.                       |
 
 ### `StatesMachine`
 

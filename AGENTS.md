@@ -56,6 +56,7 @@ ECS/
 ├── Entities/
 │   ├── CharacterBody3D.cs           — CharacterBody3D entity
 │   ├── Area3D.cs                    — Area3D entity
+│   ├── Model.cs                     — plain 3D visual-model entity (no physics body)
 │   └── StatesMachine.cs             — pooled finite state machine entity
 ├── Components/
 │   ├── Main.cs                      — marker component
@@ -159,6 +160,7 @@ Classes that extend a specific Godot node type and implement `IEntity`:
 
 - `CharacterBody3D` — `Godot.CharacterBody3D` + `IEntity`.
 - `Area3D` — `Godot.Area3D` + `IEntity`.
+- `Model` — `ECS.Core.Entity` (plain `Node3D`) with no physics body; use for purely visual 3D model nodes.
 
 ### Godot-node wrapper components (`Components/AnimationPlayer.cs`, `CollisionShape3D.cs`)
 
