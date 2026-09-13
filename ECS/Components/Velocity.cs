@@ -71,9 +71,9 @@ public partial class Velocity : Component<Vector3>
     }
 
     /// <inheritdoc/>
-    protected override void OnSiblingTracked(IComponent component)
+    protected override void OnSiblingComponentTracked(IComponent component)
     {
-        base.OnSiblingTracked(component);
+        base.OnSiblingComponentTracked(component);
 
         if (component is FloorDetector floorDetector && this._floorDetector == null)
             this._floorDetector = floorDetector;
@@ -107,12 +107,12 @@ public partial class Velocity : Component<Vector3>
     }
 
     /// <inheritdoc/>
-    protected override void OnSiblingUntracked(IComponent component)
+    protected override void OnSiblingComponentUntracked(IComponent component)
     {
         if (component is FloorDetector floorDetector && this._floorDetector == floorDetector)
             this._floorDetector = null;
 
-        base.OnSiblingUntracked(component);
+        base.OnSiblingComponentUntracked(component);
     }
 
     /// <inheritdoc/>

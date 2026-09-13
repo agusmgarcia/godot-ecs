@@ -59,9 +59,11 @@ The generator also produces `OnInit()` and `OnDispose()` virtual hooks (called f
 Marker interface for components. The generator produces:
 
 - `Entity` property (`IEntity?`) — the owning entity.
-- `Siblings` property (`IReadonlyTypedSet<IComponent>`) — live set of sibling components.
+- `SiblingComponents` property (`IReadonlyTypedSet<IComponent>`) — live set of sibling components on the same entity.
+- `SiblingEntities` property (`IReadonlyTypedSet<IEntity>`) — live set of sibling child entities on the same entity.
 - Lifecycle hooks: `OnInit()`, `OnUpdate(double delta)`, `OnDispose()`.
-- Sibling hooks: `OnSiblingTracked(IComponent)`, `OnSiblingUntracked(IComponent)`.
+- Sibling component hooks: `OnSiblingComponentTracked(IComponent)`, `OnSiblingComponentUntracked(IComponent)`.
+- Sibling entity hooks: `OnSiblingEntityTracked(IEntity)`, `OnSiblingEntityUntracked(IEntity)`.
 
 ### `ISystem`
 
@@ -88,17 +90,17 @@ public partial class Player : Entity { }
 
 All boilerplate (`Components`, `Children`, `Parent`, trackers, lifecycle) is generated.
 
-| Member                              | Description                                                         |
-| ----------------------------------- | ------------------------------------------------------------------- |
-| `Components`                        | Live typed set of direct child components.                          |
-| `Children`                          | Live set of direct child entities.                                  |
-| `Parent`                            | The parent entity, or `null`.                                       |
-| `OnInit()`                          | Called once after the entity enters the scene tree (via `_Ready`).  |
-| `OnDispose()`                       | Called once before the entity exits the scene tree.                 |
-| `OnComponentTracked(IComponent)`    | Called when a direct child component is added.                      |
-| `OnComponentUntracked(IComponent)`  | Called when a direct child component is removed.                    |
-| `AddComponent<TComponent>()`        | Adds a component as a child node.                                   |
-| `RemoveComponent<TComponent>()`     | Removes a child component node.                                     |
+| Member                             | Description                                                        |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| `Components`                       | Live typed set of direct child components.                         |
+| `Children`                         | Live set of direct child entities.                                 |
+| `Parent`                           | The parent entity, or `null`.                                      |
+| `OnInit()`                         | Called once after the entity enters the scene tree (via `_Ready`). |
+| `OnDispose()`                      | Called once before the entity exits the scene tree.                |
+| `OnComponentTracked(IComponent)`   | Called when a direct child component is added.                     |
+| `OnComponentUntracked(IComponent)` | Called when a direct child component is removed.                   |
+| `AddComponent<TComponent>()`       | Adds a component as a child node.                                  |
+| `RemoveComponent<TComponent>()`    | Removes a child component node.                                    |
 
 ```csharp
 // Look up a component from within another component.
@@ -119,33 +121,36 @@ public partial class MyComponent : Component
         GD.Print(base.Entity!.Name);
     }
 
-    protected override void OnSiblingTracked(IComponent component)
+    protected override void OnSiblingComponentTracked(IComponent component)
     {
-        base.OnSiblingTracked(component);
+        base.OnSiblingComponentTracked(component);
         if (component is Velocity velocity)
             velocity.ValueChanged += this.OnVelocityChanged;
     }
 
-    protected override void OnSiblingUntracked(IComponent component)
+    protected override void OnSiblingComponentUntracked(IComponent component)
     {
         if (component is Velocity velocity)
             velocity.ValueChanged -= this.OnVelocityChanged;
-        base.OnSiblingUntracked(component);
+        base.OnSiblingComponentUntracked(component);
     }
 
     private void OnVelocityChanged(Vector3 v) { /* ... */ }
 }
 ```
 
-| Member                           | Description                                                  |
-| -------------------------------- | ------------------------------------------------------------ |
-| `Entity?`                        | The owning entity; `null` while outside the scene tree.      |
-| `Siblings`                       | Live typed set of sibling components on the same entity.     |
-| `OnInit()`                       | Called once after entering the scene tree (after setup).     |
-| `OnUpdate(double)`               | Called every physics frame.                                  |
-| `OnDispose()`                    | Called once before exiting the scene tree (before teardown). |
-| `OnSiblingTracked(IComponent)`   | Called when a sibling component is added.                    |
-| `OnSiblingUntracked(IComponent)` | Called when a sibling component is removed.                  |
+| Member                                    | Description                                                  |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| `Entity?`                                 | The owning entity; `null` while outside the scene tree.      |
+| `SiblingComponents`                       | Live typed set of sibling components on the same entity.     |
+| `SiblingEntities`                         | Live typed set of sibling child entities on the same entity. |
+| `OnInit()`                                | Called once after entering the scene tree (after setup).     |
+| `OnUpdate(double)`                        | Called every physics frame.                                  |
+| `OnDispose()`                             | Called once before exiting the scene tree (before teardown). |
+| `OnSiblingComponentTracked(IComponent)`   | Called when a sibling component is added.                    |
+| `OnSiblingComponentUntracked(IComponent)` | Called when a sibling component is removed.                  |
+| `OnSiblingEntityTracked(IEntity)`         | Called when a sibling child entity is added.                 |
+| `OnSiblingEntityUntracked(IEntity)`       | Called when a sibling child entity is removed.               |
 
 > **Note:** `Entity` is `null` outside the scene tree. Inside lifecycle hooks it is guaranteed non-null — use `base.Entity!`.
 
@@ -242,18 +247,18 @@ public partial class PlayerStateMachine : StatesMachine
             // subscribe to events...
         }
 
-        protected override void OnSiblingTracked(IComponent component)
+        protected override void OnSiblingComponentTracked(IComponent component)
         {
-            base.OnSiblingTracked(component);
+            base.OnSiblingComponentTracked(component);
             if (component is Velocity velocity)
                 velocity.ValueChanged += this.OnVelocityChanged;
         }
 
-        protected override void OnSiblingUntracked(IComponent component)
+        protected override void OnSiblingComponentUntracked(IComponent component)
         {
             if (component is Velocity velocity)
                 velocity.ValueChanged -= this.OnVelocityChanged;
-            base.OnSiblingUntracked(component);
+            base.OnSiblingComponentUntracked(component);
         }
 
         protected override void OnUpdate(double delta) { /* ... */ }
@@ -271,11 +276,11 @@ public partial class PlayerStateMachine : StatesMachine
 }
 ```
 
-| Member                        | Description                                                                         |
-| ----------------------------- | ----------------------------------------------------------------------------------- |
-| `SetState<TState, TParams>()` | Transition to a new state, pooling the old one and initialising the new one.        |
-| `ReadyToTransition()`         | Override on a state to block non-forced transitions away from it.                   |
-| `force`                       | Pass `force: true` to `SetState` to bypass `ReadyToTransition()`.                   |
+| Member                        | Description                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `SetState<TState, TParams>()` | Transition to a new state, pooling the old one and initialising the new one. |
+| `ReadyToTransition()`         | Override on a state to block non-forced transitions away from it.            |
+| `force`                       | Pass `force: true` to `SetState` to bypass `ReadyToTransition()`.            |
 
 States are pooled via `ElementsPool` — never instantiate them with `new`. Always transition via `SetState`.
 
@@ -337,13 +342,13 @@ Component that tracks whether the entity is currently on the floor. Wraps `Chara
 
 Component that smoothly rotates the entity to face a world-space target position each physics frame. Syncs bidirectionally with the entity's `Rotation` property (same `NotificationFromParent` guard as `Position`).
 
-| Member         | Description                                                    |
-| -------------- | -------------------------------------------------------------- |
-| `AngularSpeed` | Rotation speed (°/s).                                          |
-| `Right`        | Entity's current right axis (`Basis.X`).                       |
-| `Up`           | Entity's current up axis (`Basis.Y`).                          |
-| `Forward`      | Entity's current forward axis (`Basis.Z`).                     |
-| `LookAt()`     | Sets the world-space target position the entity will face.     |
+| Member         | Description                                                |
+| -------------- | ---------------------------------------------------------- |
+| `AngularSpeed` | Rotation speed (°/s).                                      |
+| `Right`        | Entity's current right axis (`Basis.X`).                   |
+| `Up`           | Entity's current up axis (`Basis.Y`).                      |
+| `Forward`      | Entity's current forward axis (`Basis.Z`).                 |
+| `LookAt()`     | Sets the world-space target position the entity will face. |
 
 Integrates with sibling `Position` and `Velocity` components: when present, the target is automatically offset by the current position and velocity each frame so the entity faces where it is heading.
 
@@ -353,12 +358,12 @@ Integrates with sibling `Position` and `Velocity` components: when present, the 
 
 Base classes for states managed by `StatesMachine`. Extend `State` for parameter-less states or `State<TStateParams>` when the transition must carry a `struct` of data.
 
-| Member                  | Description                                                                  |
-| ----------------------- | ---------------------------------------------------------------------------- |
-| `StateParams`           | (`State<TStateParams>` only) The params passed by the last `SetState` call.  |
-| `ReadyToTransition()`   | Return `false` to block non-forced transitions away from this state.         |
+| Member                | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `StateParams`         | (`State<TStateParams>` only) The params passed by the last `SetState` call. |
+| `ReadyToTransition()` | Return `false` to block non-forced transitions away from this state.        |
 
-States are regular components — they receive the full `OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingTracked`, `OnSiblingUntracked` lifecycle.
+States are regular components — they receive the full `OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingComponentTracked`, `OnSiblingComponentUntracked` lifecycle.
 
 ### `AnimationPlayer`
 
@@ -438,12 +443,12 @@ tracker.Untrack();
 
 The `ECS.Generators` project contains Roslyn incremental source generators that run at compile time. Wired into `ECS.csproj` via `ProjectReference` with `OutputItemType="Analyzer"`. Not shipped as a NuGet package.
 
-| Generator                       | Trigger                  | Purpose                                                                     |
-| ------------------------------- | ------------------------ | --------------------------------------------------------------------------- |
-| `HideInheritedMembersGenerator` | `[HideInheritedMembers]` | Hides/seals all inherited Godot public members from IntelliSense            |
-| `EntityGenerator`               | `IEntity`                | Generates `Components`, `Children`, `Parent`, trackers, lifecycle overrides |
-| `ComponentGenerator`            | `IComponent`             | Generates `Entity`, `Siblings`, trackers, lifecycle overrides + hooks       |
-| `SystemGenerator`               | `ISystem`                | Generates `Entities`, tracker, lifecycle overrides + hooks                  |
+| Generator                       | Trigger                  | Purpose                                                                                           |
+| ------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------- |
+| `HideInheritedMembersGenerator` | `[HideInheritedMembers]` | Hides/seals all inherited Godot public members from IntelliSense                                  |
+| `EntityGenerator`               | `IEntity`                | Generates `Components`, `Children`, `Parent`, trackers, lifecycle overrides                       |
+| `ComponentGenerator`            | `IComponent`             | Generates `Entity`, `SiblingComponents`, `SiblingEntities`, trackers, lifecycle overrides + hooks |
+| `SystemGenerator`               | `ISystem`                | Generates `Entities`, tracker, lifecycle overrides + hooks                                        |
 
 All members are generated only when absent from the hand-written class (skip-if-present rule).
 

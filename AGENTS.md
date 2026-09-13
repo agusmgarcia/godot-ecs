@@ -128,10 +128,11 @@ The generators project targets `netstandard2.0` and is wired into `ECS.csproj` a
 **`ComponentGenerator`** — triggered by `IComponent`. Generates (when absent):
 
 - `IEntity? Entity` property (resolved via `FindEntity()`, which walks up the scene tree looking for an owner that implements `IEntity`).
-- `TypedSet<IComponent>` + `NodesTracker<IComponent>` (`DirectChildren = true`) for `Siblings`.
+- `TypedSet<IComponent>` + `NodesTracker<IComponent>` (`DirectChildren = true`) for `SiblingComponents`.
+- `TypedSet<IEntity>` + `NodesTracker<IEntity>` (`DirectChildren = true`) for `SiblingEntities`.
 - `sealed override _EnterTree` / `_PhysicsProcess` / `_ExitTree` with `[EditorBrowsable(Never)]` — lifecycle bridge calling `OnInit()` / `OnUpdate(delta)` / `OnDispose()`.
-- Private tracker callbacks that update the `TypedSet` and forward to the virtual hooks.
-- Virtual hooks: `OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingTracked(IComponent)`, `OnSiblingUntracked(IComponent)`.
+- Private tracker callbacks that update both `TypedSet`s and forward to the virtual hooks.
+- Virtual hooks: `OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingComponentTracked(IComponent)`, `OnSiblingComponentUntracked(IComponent)`, `OnSiblingEntityTracked(IEntity)`, `OnSiblingEntityUntracked(IEntity)`.
 
 **`SystemGenerator`** — triggered by `ISystem`. Generates (when absent):
 
@@ -207,7 +208,7 @@ Classes that extend a specific Godot node type and implement `IComponent`. All c
 ### Member access
 
 - Always qualify instance members with `this.` and inherited members with `base.`.
-- `protected` for hooks and state that subclasses need (`Entity`, `Entities`, `OnSiblingTracked`, `OnEntityTracked`, `Value` setter, `SetState`).
+- `protected` for hooks and state that subclasses need (`Entity`, `Entities`, `OnSiblingComponentTracked`, `OnEntityTracked`, `Value` setter, `SetState`).
 - `private set` or `protected set` on properties that must not be assigned from outside.
 - `private readonly` for all internal fields.
 
@@ -215,11 +216,11 @@ Classes that extend a specific Godot node type and implement `IComponent`. All c
 
 Consumers do **not** override `_EnterTree`, `_Ready`, `_ExitTree`, or `_PhysicsProcess`. These are `sealed override` by the generators. Instead, override the ECS hooks:
 
-| Godot method (sealed) | ECS hook (virtual)     | Available on                      |
-| --------------------- | ---------------------- | --------------------------------- |
-| `_Ready`              | `OnInit()`             | `IComponent`, `ISystem`, `IEntity`|
-| `_PhysicsProcess`     | `OnUpdate(double)`     | `IComponent`, `ISystem`           |
-| `_ExitTree`           | `OnDispose()`          | `IComponent`, `ISystem`, `IEntity`|
+| Godot method (sealed) | ECS hook (virtual) | Available on                       |
+| --------------------- | ------------------ | ---------------------------------- |
+| `_Ready`              | `OnInit()`         | `IComponent`, `ISystem`, `IEntity` |
+| `_PhysicsProcess`     | `OnUpdate(double)` | `IComponent`, `ISystem`            |
+| `_ExitTree`           | `OnDispose()`      | `IComponent`, `ISystem`, `IEntity` |
 
 **Lifecycle order for entities:**
 
@@ -250,13 +251,13 @@ Consumers do **not** override `_EnterTree`, `_Ready`, `_ExitTree`, or `_PhysicsP
 
 1. `base._EnterTree()`.
 2. Resolve `Entity` via `FindEntity()` (walks up the tree until an `IEntity` owner is found).
-3. Start sibling tracker.
+3. Start sibling-components tracker, then sibling-entities tracker.
 4. Call `this.OnInit()`.
 
 **`_ExitTree` (sealed, generated):**
 
 1. Call `this.OnDispose()`.
-2. Stop sibling tracker.
+2. Stop sibling-entities tracker, then sibling-components tracker.
 3. Clear `Entity` to null.
 4. `base._ExitTree()`.
 
@@ -293,7 +294,7 @@ These rules apply to every public and protected member. Do **not** document priv
 1. Create `ECS/Components/MyComponent.cs`.
 2. Extend `Component` (or `Component<TValue>` for a value wrapper).
 3. Mark `[GlobalClass]` and `partial`.
-4. React to siblings in `OnSiblingTracked(IComponent)` / `OnSiblingUntracked(IComponent)`.
+4. React to siblings in `OnSiblingComponentTracked(IComponent)` / `OnSiblingComponentUntracked(IComponent)`.
 5. Always call `base.OnInit()` first and `base.OnDispose()` last.
 6. Document every public and protected member with a single-line `<summary>`.
 
@@ -310,18 +311,18 @@ public partial class MyComponent : Component
         // subscribe to events, initialise state…
     }
 
-    protected override void OnSiblingTracked(IComponent component)
+    protected override void OnSiblingComponentTracked(IComponent component)
     {
-        base.OnSiblingTracked(component);
+        base.OnSiblingComponentTracked(component);
         if (component is Velocity velocity)
             velocity.ValueChanged += this.OnVelocityChanged;
     }
 
-    protected override void OnSiblingUntracked(IComponent component)
+    protected override void OnSiblingComponentUntracked(IComponent component)
     {
         if (component is Velocity velocity)
             velocity.ValueChanged -= this.OnVelocityChanged;
-        base.OnSiblingUntracked(component);
+        base.OnSiblingComponentUntracked(component);
     }
 
     protected override void OnDispose()
@@ -370,7 +371,7 @@ public partial class Area3D : Godot.Area3D, IEntity
 
 `StatesMachine` extends `Entity` (lives in `Entities/`). Subclass it to create a concrete state machine; states are separate classes that extend `State` (for parameter-less transitions) or `State<TStateParams>` (when a `struct` of data must be passed on transition).
 
-States are pooled via `ElementsPool` — never instantiate them with `new`; always transition via `SetState`. The state's full component lifecycle (`OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingTracked`, `OnSiblingUntracked`) runs exactly like any other component because `State` extends `Component`.
+States are pooled via `ElementsPool` — never instantiate them with `new`; always transition via `SetState`. The state's full component lifecycle (`OnInit`, `OnUpdate`, `OnDispose`, `OnSiblingComponentTracked`, `OnSiblingComponentUntracked`) runs exactly like any other component because `State` extends `Component`.
 
 Always call `base.OnInit()` first and `base.OnDispose()` last.
 
@@ -393,18 +394,18 @@ public partial class PlayerStateMachine : StatesMachine
             // subscribe to events…
         }
 
-        protected override void OnSiblingTracked(IComponent component)
+        protected override void OnSiblingComponentTracked(IComponent component)
         {
-            base.OnSiblingTracked(component);
+            base.OnSiblingComponentTracked(component);
             if (component is Velocity velocity)
                 velocity.ValueChanged += this.OnVelocityChanged;
         }
 
-        protected override void OnSiblingUntracked(IComponent component)
+        protected override void OnSiblingComponentUntracked(IComponent component)
         {
             if (component is Velocity velocity)
                 velocity.ValueChanged -= this.OnVelocityChanged;
-            base.OnSiblingUntracked(component);
+            base.OnSiblingComponentUntracked(component);
         }
 
         protected override void OnUpdate(double delta) { /* … */ }

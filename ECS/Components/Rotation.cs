@@ -78,9 +78,9 @@ public partial class Rotation : Component<Vector3>
     }
 
     /// <inheritdoc/>
-    protected override void OnSiblingTracked(IComponent component)
+    protected override void OnSiblingComponentTracked(IComponent component)
     {
-        base.OnSiblingTracked(component);
+        base.OnSiblingComponentTracked(component);
 
         if (component is Velocity velocity && this._velocity == null)
         {
@@ -128,7 +128,7 @@ public partial class Rotation : Component<Vector3>
     }
 
     /// <inheritdoc/>
-    protected override void OnSiblingUntracked(IComponent component)
+    protected override void OnSiblingComponentUntracked(IComponent component)
     {
         if (component is Position position && this._position == position)
         {
@@ -144,7 +144,7 @@ public partial class Rotation : Component<Vector3>
             this._velocity = null;
         }
 
-        base.OnSiblingUntracked(component);
+        base.OnSiblingComponentUntracked(component);
     }
 
     /// <inheritdoc/>
