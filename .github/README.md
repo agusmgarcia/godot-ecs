@@ -288,7 +288,7 @@ States are pooled via `ElementsPool` — never instantiate them with `new`. Alwa
 ```csharp
 // Add your own entity variant:
 [GlobalClass]
-[HideInheritedMembers("Name")]
+[HideInheritedMembers("Name", "SceneFilePath")]
 public partial class RigidBody3D : Godot.RigidBody3D, IEntity
 {
 }

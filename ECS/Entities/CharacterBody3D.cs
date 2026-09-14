@@ -7,7 +7,7 @@ namespace ECS.Entities;
 /// Base class for all game entities; extends <see cref="Godot.CharacterBody3D"/> and implements <see cref="IEntity"/>.
 /// </summary>
 [GlobalClass]
-[HideInheritedMembers("Name")]
+[HideInheritedMembers("Name", "SceneFilePath")]
 public partial class CharacterBody3D : Godot.CharacterBody3D, IEntity
 {
 }

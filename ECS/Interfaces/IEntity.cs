@@ -21,4 +21,9 @@ public interface IEntity : INode
     /// The parent entity of this entity, or <c>null</c> if there is none.
     /// </summary>
     IEntity? Parent { get; }
+
+    /// <summary>
+    /// The original scene's file path, if the node has been instantiated from a PackedScene file. Only scene root nodes contains this.
+    /// </summary>
+    string SceneFilePath { get; }
 }
