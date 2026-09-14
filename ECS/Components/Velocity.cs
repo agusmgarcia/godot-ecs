@@ -31,9 +31,10 @@ public partial class Velocity : Component<Vector3>
     public float MaxSpeed { get; protected set; }
 
     private FloorDetector? _floorDetector;
+
     private Vector3 _direction;
-    private float _speed;
     private float _pendingSpeedDelta;
+    private float _speed;
 
     /// <summary>
     /// Initialises the component with zero initial velocity.
@@ -61,10 +62,9 @@ public partial class Velocity : Component<Vector3>
     {
         base.OnInit();
 
-        this._floorDetector = null;
         this._direction = Vector3.Zero;
-        this._speed = 0;
         this._pendingSpeedDelta = 0;
+        this._speed = 0;
 
         base.ValueChanged += this.OnVelocityChanged;
         this.OnVelocityChanged((base.Entity as CharacterBody3D)?.Velocity ?? Vector3.Zero);
@@ -121,10 +121,9 @@ public partial class Velocity : Component<Vector3>
         this.OnVelocityChanged((base.Entity as CharacterBody3D)?.Velocity ?? Vector3.Zero);
         base.ValueChanged -= this.OnVelocityChanged;
 
-        this._pendingSpeedDelta = 0;
         this._speed = 0;
+        this._pendingSpeedDelta = 0;
         this._direction = Vector3.Zero;
-        this._floorDetector = null;
 
         base.OnDispose();
     }
