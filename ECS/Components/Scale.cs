@@ -10,6 +10,15 @@ namespace ECS.Components;
 public partial class Scale : Component<Vector3>
 {
     /// <summary>
+    /// The current value.
+    /// </summary>
+    public new Vector3 Value
+    {
+        get => base.Value;
+        set => base.Value = value;
+    }
+
+    /// <summary>
     /// Initialises the component with a scale of <see cref="Vector3.One"/>.
     /// </summary>
     public Scale()
