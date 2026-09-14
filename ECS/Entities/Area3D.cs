@@ -10,5 +10,4 @@ namespace ECS.Entities;
 [HideInheritedMembers("Name")]
 public partial class Area3D : Godot.Area3D, IEntity
 {
-    string INode.Name => base.Name;
 }

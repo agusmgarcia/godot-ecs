@@ -10,5 +10,4 @@ namespace ECS.Entities;
 [HideInheritedMembers("Name")]
 public partial class CharacterBody3D : Godot.CharacterBody3D, IEntity
 {
-    string INode.Name => base.Name;
 }

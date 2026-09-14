@@ -12,5 +12,4 @@ namespace ECS.Core;
 // I would like to spend some time investigating if it could be converted into a Node.
 public partial class Entity : Node3D, IEntity
 {
-    string INode.Name => base.Name;
 }

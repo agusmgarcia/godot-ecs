@@ -10,5 +10,4 @@ namespace ECS.Core;
 [HideInheritedMembers("Name")]
 public partial class Component : Node, IComponent
 {
-    string INode.Name => base.Name;
 }

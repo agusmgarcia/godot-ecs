@@ -349,7 +349,6 @@ Use this when the component must extend a specific Godot type (e.g., `Godot.Area
 [HideInheritedMembers("Name")]
 public partial class MyWrapper : Godot.MyNode, IComponent
 {
-    string INode.Name => base.Name;
 }
 ```
 
@@ -365,7 +364,6 @@ Use this when you need an entity based on a specific Godot type (e.g., `Godot.Ar
 [HideInheritedMembers("Name")]
 public partial class Area3D : Godot.Area3D, IEntity
 {
-    string INode.Name => base.Name;
 }
 ```
 

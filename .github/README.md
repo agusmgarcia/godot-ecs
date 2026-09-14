@@ -291,7 +291,6 @@ States are pooled via `ElementsPool` — never instantiate them with `new`. Alwa
 [HideInheritedMembers("Name")]
 public partial class RigidBody3D : Godot.RigidBody3D, IEntity
 {
-    string INode.Name => base.Name;
 }
 ```
 

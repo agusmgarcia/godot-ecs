@@ -10,5 +10,4 @@ namespace ECS.Components;
 [HideInheritedMembers("Name")]
 public partial class CollisionShape3D : Godot.CollisionShape3D, IComponent
 {
-    string INode.Name => base.Name;
 }

@@ -10,8 +10,6 @@ namespace ECS.Components;
 [HideInheritedMembers("Name", "Play")]
 public partial class AnimationPlayer : Godot.AnimationPlayer, IComponent
 {
-    string INode.Name => base.Name;
-
     /// <summary>
     /// Raised when <see cref="Value"/> is assigned a value that differs from the current one.
     /// </summary>
