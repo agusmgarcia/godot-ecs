@@ -35,12 +35,12 @@ public partial class Rotation : Component<Vector3>
         (base.Entity as Node3D)?.Basis.Z ?? Vector3.Forward;
 
     /// <summary>
-    /// The current Euler rotation in radians; settable from within the assembly only.
+    /// The current value.
     /// </summary>
     public new Vector3 Value
     {
         get => base.Value;
-        internal protected set => base.Value = value;
+        set => base.Value = value;
     }
 
     /// <summary>
@@ -50,6 +50,7 @@ public partial class Rotation : Component<Vector3>
 
     private Position? _position;
     private Velocity? _velocity;
+
     private Vector3 _target;
 
     /// <summary>
@@ -69,8 +70,6 @@ public partial class Rotation : Component<Vector3>
     {
         base.OnInit();
 
-        this._position = null;
-        this._velocity = null;
         this._target = Vector3.Zero;
 
         base.ValueChanged += this.OnRotationChanged;
@@ -154,8 +153,6 @@ public partial class Rotation : Component<Vector3>
         base.ValueChanged -= this.OnRotationChanged;
 
         this._target = Vector3.Zero;
-        this._velocity = null;
-        this._position = null;
 
         base.OnDispose();
     }
