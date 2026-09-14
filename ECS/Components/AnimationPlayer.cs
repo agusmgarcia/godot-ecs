@@ -7,7 +7,7 @@ namespace ECS.Components;
 /// ECS-aware wrapper around <see cref="Godot.AnimationPlayer"/> that implements <see cref="IComponent"/>.
 /// </summary>
 [GlobalClass]
-[HideInheritedMembers("GetAnimationList", "Name", "Play", "Owner")]
+[HideInheritedMembers("Name", "Play", "Owner")]
 public partial class AnimationPlayer : Godot.AnimationPlayer, IComponent
 {
     /// <summary>
@@ -32,6 +32,12 @@ public partial class AnimationPlayer : Godot.AnimationPlayer, IComponent
     }
 
     /// <summary>
+    /// Returns the list of stored animation keys.
+    /// </summary>
+    protected IReadOnlyCollection<string> AnimationList =>
+        base.GetAnimationList();
+
+    /// <summary>
     /// Creates a new animation player
     /// </summary>
     public AnimationPlayer() =>
@@ -45,7 +51,6 @@ public partial class AnimationPlayer : Godot.AnimationPlayer, IComponent
         base.AnimationStarted += this.OnAnimationStarted;
         base.AnimationFinished += this.OnAnimationFinished;
         this.OnAnimationStarted(base.CurrentAnimation);
-        base.Stop();
     }
 
     private void OnAnimationStarted(StringName animationName) =>
@@ -59,7 +64,6 @@ public partial class AnimationPlayer : Godot.AnimationPlayer, IComponent
     /// </summary>
     protected virtual void OnDispose()
     {
-        base.Stop();
         this.OnAnimationFinished(base.CurrentAnimation);
         base.AnimationFinished -= this.OnAnimationFinished;
         base.AnimationStarted -= this.OnAnimationStarted;
