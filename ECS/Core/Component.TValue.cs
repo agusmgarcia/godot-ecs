@@ -11,7 +11,7 @@ public abstract partial class Component<TValue>(TValue initialValue) : Component
     public event Action<TValue>? ValueChanged;
 
     /// <summary>
-    /// The current value; settable by subclasses only.
+    /// The current value.
     /// </summary>
     public TValue Value
     {
