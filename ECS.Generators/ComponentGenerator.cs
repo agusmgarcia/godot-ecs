@@ -70,26 +70,6 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             !own.Contains("_siblingEntities") || !own.Contains("_siblingEntitiesTracker"))
             sb.AppendLine();
 
-        // --- SiblingComponents property ---
-        if (!own.Contains("SiblingComponents"))
-        {
-            sb.AppendLine($"{indent}    /// <summary>");
-            sb.AppendLine($"{indent}    /// Live typed set of sibling <see cref=\"global::ECS.Interfaces.IComponent\"/> nodes attached to the same entity.");
-            sb.AppendLine($"{indent}    /// </summary>");
-            sb.AppendLine($"{indent}    protected global::ECS.Utils.IReadonlyTypedSet<global::ECS.Interfaces.IComponent> SiblingComponents => this._siblingComponents;");
-            sb.AppendLine();
-        }
-
-        // --- SiblingEntities property ---
-        if (!own.Contains("SiblingEntities"))
-        {
-            sb.AppendLine($"{indent}    /// <summary>");
-            sb.AppendLine($"{indent}    /// Live typed set of sibling <see cref=\"global::ECS.Interfaces.IEntity\"/> nodes that are direct children of the same entity.");
-            sb.AppendLine($"{indent}    /// </summary>");
-            sb.AppendLine($"{indent}    protected global::ECS.Utils.IReadonlyTypedSet<global::ECS.Interfaces.IEntity> SiblingEntities => this._siblingEntities;");
-            sb.AppendLine();
-        }
-
         // --- _EnterTree ---
         if (!own.Contains("_EnterTree"))
         {
