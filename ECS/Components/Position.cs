@@ -10,12 +10,12 @@ namespace ECS.Components;
 public partial class Position : Component<Vector3>
 {
     /// <summary>
-    /// The current world position; settable from within the assembly only.
+    /// The current value.
     /// </summary>
     public new Vector3 Value
     {
         get => base.Value;
-        internal protected set => base.Value = value;
+        set => base.Value = value;
     }
 
     /// <summary>
