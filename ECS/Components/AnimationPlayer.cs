@@ -7,7 +7,7 @@ namespace ECS.Components;
 /// ECS-aware wrapper around <see cref="Godot.AnimationPlayer"/> that implements <see cref="IComponent"/>.
 /// </summary>
 [GlobalClass]
-[HideInheritedMembers("Name", "Play")]
+[HideInheritedMembers("GetAnimationList", "Name", "Play")]
 public partial class AnimationPlayer : Godot.AnimationPlayer, IComponent
 {
     /// <summary>
