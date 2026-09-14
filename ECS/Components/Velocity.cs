@@ -67,7 +67,7 @@ public partial class Velocity : Component<Vector3>
         this._speed = 0;
 
         base.ValueChanged += this.OnVelocityChanged;
-        this.OnVelocityChanged((base.Entity as CharacterBody3D)?.Velocity ?? Vector3.Zero);
+        this.OnVelocityChanged((base.Owner as CharacterBody3D)?.Velocity ?? Vector3.Zero);
     }
 
     /// <inheritdoc/>
@@ -101,7 +101,7 @@ public partial class Velocity : Component<Vector3>
 
     private void OnVelocityChanged(Vector3 velocity)
     {
-        var characterBody3D = base.Entity as CharacterBody3D;
+        var characterBody3D = base.Owner as CharacterBody3D;
         characterBody3D?.Velocity = velocity;
         characterBody3D?.MoveAndSlide();
     }
@@ -118,7 +118,7 @@ public partial class Velocity : Component<Vector3>
     /// <inheritdoc/>
     protected override void OnDispose()
     {
-        this.OnVelocityChanged((base.Entity as CharacterBody3D)?.Velocity ?? Vector3.Zero);
+        this.OnVelocityChanged((base.Owner as CharacterBody3D)?.Velocity ?? Vector3.Zero);
         base.ValueChanged -= this.OnVelocityChanged;
 
         this._speed = 0;

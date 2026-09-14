@@ -35,19 +35,19 @@ public partial class Position : Component<Vector3>
         base.OnInit();
 
         base.ValueChanged += this.OnPositionChanged;
-        this.OnPositionChanged((base.Entity as Node3D)?.Position ?? Vector3.Zero);
+        this.OnPositionChanged((base.Owner as Node3D)?.Position ?? Vector3.Zero);
     }
 
     private void OnPositionChanged(Vector3 position)
     {
         if (!this.NotificationFromParent)
-            (base.Entity as Node3D)?.Position = position;
+            (base.Owner as Node3D)?.Position = position;
     }
 
     /// <inheritdoc/>
     protected override void OnDispose()
     {
-        this.OnPositionChanged((base.Entity as Node3D)?.Position ?? Vector3.Zero);
+        this.OnPositionChanged((base.Owner as Node3D)?.Position ?? Vector3.Zero);
         base.ValueChanged -= this.OnPositionChanged;
 
         base.OnDispose();

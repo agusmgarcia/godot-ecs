@@ -49,12 +49,12 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         RoleGeneratorHelper.WriteHeader(sb, classSymbol, out var ns, out var indent);
 
         // --- Fields & properties ---
-        if (!own.Contains("Entity"))
+        if (!own.Contains("Owner"))
         {
             sb.AppendLine($"{indent}    /// <summary>");
             sb.AppendLine($"{indent}    /// The entity that owns this component; <c>null</c> while outside the scene tree.");
             sb.AppendLine($"{indent}    /// </summary>");
-            sb.AppendLine($"{indent}    public global::ECS.Interfaces.IEntity? Entity {{ get; private set; }}");
+            sb.AppendLine($"{indent}    public new global::ECS.Interfaces.IEntity? Owner {{ get; private set; }}");
             sb.AppendLine();
         }
         if (!own.Contains("_siblingComponents"))
@@ -98,14 +98,14 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}    public sealed override void _EnterTree()");
             sb.AppendLine($"{indent}    {{");
             sb.AppendLine($"{indent}        base._EnterTree();");
-            if (!own.Contains("Entity"))
-                sb.AppendLine($"{indent}        this.Entity = this.FindEntity();");
+            if (!own.Contains("Owner"))
+                sb.AppendLine($"{indent}        this.Owner = this.FindOwner();");
             sb.AppendLine($"{indent}        this._siblingComponentsTracker.NodeTracked += this.OnSiblingComponentTrackedInternal;");
             sb.AppendLine($"{indent}        this._siblingComponentsTracker.NodeUntracked += this.OnSiblingComponentUntrackedInternal;");
-            sb.AppendLine($"{indent}        this._siblingComponentsTracker.Track((global::Godot.Node)this.Entity);");
+            sb.AppendLine($"{indent}        this._siblingComponentsTracker.Track((global::Godot.Node)this.Owner);");
             sb.AppendLine($"{indent}        this._siblingEntitiesTracker.NodeTracked += this.OnSiblingEntityTrackedInternal;");
             sb.AppendLine($"{indent}        this._siblingEntitiesTracker.NodeUntracked += this.OnSiblingEntityUntrackedInternal;");
-            sb.AppendLine($"{indent}        this._siblingEntitiesTracker.Track((global::Godot.Node)this.Entity);");
+            sb.AppendLine($"{indent}        this._siblingEntitiesTracker.Track((global::Godot.Node)this.Owner);");
             sb.AppendLine($"{indent}        this.OnInit();");
             sb.AppendLine($"{indent}    }}");
             sb.AppendLine();
@@ -148,8 +148,8 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}        this._siblingComponentsTracker.Untrack();");
             sb.AppendLine($"{indent}        this._siblingComponentsTracker.NodeUntracked -= this.OnSiblingComponentUntrackedInternal;");
             sb.AppendLine($"{indent}        this._siblingComponentsTracker.NodeTracked -= this.OnSiblingComponentTrackedInternal;");
-            if (!own.Contains("Entity"))
-                sb.AppendLine($"{indent}        this.Entity = null;");
+            if (!own.Contains("Owner"))
+                sb.AppendLine($"{indent}        this.Owner = null;");
             sb.AppendLine($"{indent}        base._ExitTree();");
             sb.AppendLine($"{indent}    }}");
             sb.AppendLine();
@@ -193,9 +193,9 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             sb.AppendLine();
         }
 
-        if (!own.Contains("FindEntity"))
+        if (!own.Contains("FindOwner"))
         {
-            sb.AppendLine($"{indent}    private global::ECS.Interfaces.IEntity FindEntity()");
+            sb.AppendLine($"{indent}    private global::ECS.Interfaces.IEntity FindOwner()");
             sb.AppendLine($"{indent}    {{");
             sb.AppendLine($"{indent}        global::Godot.Node? instance = this;");
             sb.AppendLine($"{indent}        do");

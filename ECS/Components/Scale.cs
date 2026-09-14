@@ -30,16 +30,16 @@ public partial class Scale : Component<Vector3>
         base.OnInit();
 
         base.ValueChanged += this.OnScaleChanged;
-        this.OnScaleChanged((base.Entity as Node3D)?.Scale ?? Vector3.Zero);
+        this.OnScaleChanged((base.Owner as Node3D)?.Scale ?? Vector3.Zero);
     }
 
     private void OnScaleChanged(Vector3 scale) =>
-        (base.Entity as Node3D)?.Scale = scale;
+        (base.Owner as Node3D)?.Scale = scale;
 
     /// <inheritdoc/>
     protected override void OnDispose()
     {
-        this.OnScaleChanged((base.Entity as Node3D)?.Scale ?? Vector3.Zero);
+        this.OnScaleChanged((base.Owner as Node3D)?.Scale ?? Vector3.Zero);
         base.ValueChanged -= this.OnScaleChanged;
 
         base.OnDispose();

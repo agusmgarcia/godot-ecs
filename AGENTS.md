@@ -128,7 +128,7 @@ The generators project targets `netstandard2.0` and is wired into `ECS.csproj` a
 
 **`ComponentGenerator`** — triggered by `IComponent`. Generates (when absent):
 
-- `IEntity? Entity` property (resolved via `FindEntity()`, which walks up the scene tree looking for an owner that implements `IEntity`).
+- `IEntity? Owner` property (resolved via `FindOwner()`, which walks up the scene tree looking for an ancestor that implements `IEntity`).
 - `TypedSet<IComponent>` + `NodesTracker<IComponent>` (`DirectChildren = true`) for `SiblingComponents`.
 - `TypedSet<IEntity>` + `NodesTracker<IEntity>` (`DirectChildren = true`) for `SiblingEntities`.
 - `sealed override _EnterTree` / `_PhysicsProcess` / `_ExitTree` with `[EditorBrowsable(Never)]` — lifecycle bridge calling `OnInit()` / `OnUpdate(delta)` / `OnDispose()`.
@@ -252,7 +252,7 @@ Consumers do **not** override `_EnterTree`, `_Ready`, `_ExitTree`, or `_PhysicsP
 **`_EnterTree` (sealed, generated):**
 
 1. `base._EnterTree()`.
-2. Resolve `Entity` via `FindEntity()` (walks up the tree until an `IEntity` owner is found).
+2. Resolve `Owner` via `FindOwner()` (walks up the tree until an `IEntity` ancestor is found).
 3. Start sibling-components tracker, then sibling-entities tracker.
 4. Call `this.OnInit()`.
 

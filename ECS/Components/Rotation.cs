@@ -20,19 +20,19 @@ public partial class Rotation : Component<Vector3>
     /// The entity's current right axis (<see cref="Godot.Basis.X"/>); <see cref="Vector3.Right"/> when outside the scene tree.
     /// </summary>
     public Vector3 Right =>
-        (base.Entity as Node3D)?.Basis.X ?? Vector3.Right;
+        (base.Owner as Node3D)?.Basis.X ?? Vector3.Right;
 
     /// <summary>
     /// The entity's current up axis (<see cref="Godot.Basis.Y"/>); <see cref="Vector3.Up"/> when outside the scene tree.
     /// </summary>
     public Vector3 Up =>
-        (base.Entity as Node3D)?.Basis.Y ?? Vector3.Up;
+        (base.Owner as Node3D)?.Basis.Y ?? Vector3.Up;
 
     /// <summary>
     /// The entity's current forward axis (<see cref="Godot.Basis.Z"/>); <see cref="Vector3.Forward"/> when outside the scene tree.
     /// </summary>
     public Vector3 Forward =>
-        (base.Entity as Node3D)?.Basis.Z ?? Vector3.Forward;
+        (base.Owner as Node3D)?.Basis.Z ?? Vector3.Forward;
 
     /// <summary>
     /// The current value.
@@ -73,7 +73,7 @@ public partial class Rotation : Component<Vector3>
         this._target = Vector3.Zero;
 
         base.ValueChanged += this.OnRotationChanged;
-        this.OnRotationChanged((base.Entity as Node3D)?.Rotation ?? Vector3.Zero);
+        this.OnRotationChanged((base.Owner as Node3D)?.Rotation ?? Vector3.Zero);
     }
 
     /// <inheritdoc/>
@@ -123,7 +123,7 @@ public partial class Rotation : Component<Vector3>
     private void OnRotationChanged(Vector3 rotation)
     {
         if (!this.NotificationFromParent)
-            (base.Entity as Node3D)?.Rotation = rotation;
+            (base.Owner as Node3D)?.Rotation = rotation;
     }
 
     /// <inheritdoc/>
@@ -149,7 +149,7 @@ public partial class Rotation : Component<Vector3>
     /// <inheritdoc/>
     protected override void OnDispose()
     {
-        this.OnRotationChanged((base.Entity as Node3D)?.Rotation ?? Vector3.Zero);
+        this.OnRotationChanged((base.Owner as Node3D)?.Rotation ?? Vector3.Zero);
         base.ValueChanged -= this.OnRotationChanged;
 
         this._target = Vector3.Zero;

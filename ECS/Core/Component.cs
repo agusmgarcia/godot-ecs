@@ -7,7 +7,7 @@ namespace ECS.Core;
 /// Base class for all components; extends <see cref="Godot.Node"/> and implements <see cref="IComponent"/>.
 /// </summary>
 [GlobalClass]
-[HideInheritedMembers("Name")]
+[HideInheritedMembers("Name", "Owner")]
 public partial class Component : Node, IComponent
 {
 }

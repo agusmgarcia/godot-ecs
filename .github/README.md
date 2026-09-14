@@ -58,7 +58,7 @@ The generator also produces `OnInit()` and `OnDispose()` virtual hooks (called f
 
 Marker interface for components. The generator produces:
 
-- `Entity` property (`IEntity?`) — the owning entity.
+- `Owner` property (`IEntity?`) — the owning entity.
 - `SiblingComponents` property (`IReadonlyTypedSet<IComponent>`) — live set of sibling components on the same entity.
 - `SiblingEntities` property (`IReadonlyTypedSet<IEntity>`) — live set of sibling child entities on the same entity.
 - Lifecycle hooks: `OnInit()`, `OnUpdate(double delta)`, `OnDispose()`.
@@ -104,7 +104,7 @@ All boilerplate (`Components`, `Children`, `Parent`, trackers, lifecycle) is gen
 
 ```csharp
 // Look up a component from within another component.
-var velocity = base.Entity!.Components.GetOrNull<Velocity>();
+var velocity = base.Owner!.Components.GetOrNull<Velocity>();
 ```
 
 ### `Component`
@@ -118,7 +118,7 @@ public partial class MyComponent : Component
     protected override void OnUpdate(double delta)
     {
         base.OnUpdate(delta);
-        GD.Print(base.Entity!.Name);
+        GD.Print(base.Owner!.Name);
     }
 
     protected override void OnSiblingComponentTracked(IComponent component)
@@ -141,7 +141,7 @@ public partial class MyComponent : Component
 
 | Member                                    | Description                                                  |
 | ----------------------------------------- | ------------------------------------------------------------ |
-| `Entity?`                                 | The owning entity; `null` while outside the scene tree.      |
+| `Owner?`                                  | The owning entity; `null` while outside the scene tree.      |
 | `SiblingComponents`                       | Live typed set of sibling components on the same entity.     |
 | `SiblingEntities`                         | Live typed set of sibling child entities on the same entity. |
 | `OnInit()`                                | Called once after entering the scene tree (after setup).     |
@@ -152,7 +152,7 @@ public partial class MyComponent : Component
 | `OnSiblingEntityTracked(IEntity)`         | Called when a sibling child entity is added.                 |
 | `OnSiblingEntityUntracked(IEntity)`       | Called when a sibling child entity is removed.               |
 
-> **Note:** `Entity` is `null` outside the scene tree. Inside lifecycle hooks it is guaranteed non-null — use `base.Entity!`.
+> **Note:** `Owner` is `null` outside the scene tree. Inside lifecycle hooks it is guaranteed non-null — use `base.Owner!`.
 
 ### `Component<TValue>`
 
@@ -443,12 +443,12 @@ tracker.Untrack();
 
 The `ECS.Generators` project contains Roslyn incremental source generators that run at compile time. Wired into `ECS.csproj` via `ProjectReference` with `OutputItemType="Analyzer"`. Not shipped as a NuGet package.
 
-| Generator                       | Trigger                  | Purpose                                                                                           |
-| ------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------- |
-| `HideInheritedMembersGenerator` | `[HideInheritedMembers]` | Hides/seals all inherited Godot public members from IntelliSense                                  |
-| `EntityGenerator`               | `IEntity`                | Generates `Components`, `Children`, `Parent`, trackers, lifecycle overrides                       |
-| `ComponentGenerator`            | `IComponent`             | Generates `Entity`, `SiblingComponents`, `SiblingEntities`, trackers, lifecycle overrides + hooks |
-| `SystemGenerator`               | `ISystem`                | Generates `Entities`, tracker, lifecycle overrides + hooks                                        |
+| Generator                       | Trigger                  | Purpose                                                                                          |
+| ------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------ |
+| `HideInheritedMembersGenerator` | `[HideInheritedMembers]` | Hides/seals all inherited Godot public members from IntelliSense                                 |
+| `EntityGenerator`               | `IEntity`                | Generates `Components`, `Children`, `Parent`, trackers, lifecycle overrides                      |
+| `ComponentGenerator`            | `IComponent`             | Generates `Owner`, `SiblingComponents`, `SiblingEntities`, trackers, lifecycle overrides + hooks |
+| `SystemGenerator`               | `ISystem`                | Generates `Entities`, tracker, lifecycle overrides + hooks                                       |
 
 All members are generated only when absent from the hand-written class (skip-if-present rule).
 

@@ -19,20 +19,20 @@ public partial class FloorDetector : Component<bool>
     protected override void OnInit()
     {
         base.OnInit();
-        base.Value = (base.Entity as CharacterBody3D)?.IsOnFloor() ?? false;
+        base.Value = (base.Owner as CharacterBody3D)?.IsOnFloor() ?? false;
     }
 
     /// <inheritdoc/>
     protected override void OnUpdate(double delta)
     {
         base.OnUpdate(delta);
-        base.Value = (base.Entity as CharacterBody3D)?.IsOnFloor() ?? false;
+        base.Value = (base.Owner as CharacterBody3D)?.IsOnFloor() ?? false;
     }
 
     /// <inheritdoc/>
     protected override void OnDispose()
     {
-        base.Value = (base.Entity as CharacterBody3D)?.IsOnFloor() ?? false;
+        base.Value = (base.Owner as CharacterBody3D)?.IsOnFloor() ?? false;
         base.OnDispose();
     }
 }
