@@ -20,7 +20,7 @@ public partial class State : Component
     {
         base.OnInit();
 
-        this.Parent = base.GetParentOrNull<StatesMachine>();
+        this.Parent = (this as Node).GetParentOrNull<StatesMachine>();
     }
 
     /// <summary>

@@ -38,14 +38,20 @@ public partial class StatesMachine : Entity
     }
 
     /// <inheritdoc/>
-    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    [global::System.Obsolete("", true)]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
     protected sealed override void AddComponent<TComponent>(TComponent component) =>
         base.AddComponent(component);
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
 
     /// <inheritdoc/>
-    [System.ComponentModel.EditorBrowsable(System.ComponentModel.EditorBrowsableState.Never)]
+    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]
+    [global::System.Obsolete("", true)]
+#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member
     protected sealed override void RemoveComponent<TComponent>(TComponent component) =>
         base.RemoveComponent(component);
+#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member
 
     /// <inheritdoc/>
     protected override void OnComponentUntracked(IComponent component)

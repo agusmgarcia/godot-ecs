@@ -13,6 +13,8 @@ public sealed partial class HideInheritedMembersGenerator
     {
         sb.AppendLine("        /// <inheritdoc/>");
         sb.AppendLine("        [EditorBrowsable(EditorBrowsableState.Never)]");
+        sb.AppendLine("        [global::System.Obsolete(\"\", true)]");
+        sb.AppendLine("#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member");
 
         switch (mth.Symbol)
         {
@@ -26,12 +28,13 @@ public sealed partial class HideInheritedMembersGenerator
                 EmitEvent(sb, evt, mth.IsVirtualOrOverride); break;
         }
 
+        sb.AppendLine("#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member");
         sb.AppendLine();
     }
 
     private static void EmitProperty(StringBuilder sb, IPropertySymbol prop, bool isVirtual)
     {
-        var type    = prop.Type.ToDisplayString(_fqf);
+        var type = prop.Type.ToDisplayString(_fqf);
         var keyword = isVirtual ? "sealed override" : "new";
         sb.AppendLine($"        public {keyword} {type} {prop.Name}");
         sb.AppendLine("        {");
@@ -44,10 +47,10 @@ public sealed partial class HideInheritedMembersGenerator
 
     private static void EmitIndexer(StringBuilder sb, IPropertySymbol prop, bool isVirtual)
     {
-        var type      = prop.Type.ToDisplayString(_fqf);
+        var type = prop.Type.ToDisplayString(_fqf);
         var paramList = BuildParamList(prop.Parameters);
-        var argList   = BuildArgList(prop.Parameters);
-        var keyword   = isVirtual ? "sealed override" : "new";
+        var argList = BuildArgList(prop.Parameters);
+        var keyword = isVirtual ? "sealed override" : "new";
         sb.AppendLine($"        public {keyword} {type} this[{paramList}]");
         sb.AppendLine("        {");
         if (!prop.IsWriteOnly)
@@ -59,15 +62,15 @@ public sealed partial class HideInheritedMembersGenerator
 
     private static void EmitMethod(StringBuilder sb, IMethodSymbol method, bool isVirtual)
     {
-        var ret         = method.ReturnType.ToDisplayString(_fqf);
-        var tpDecl      = method.TypeParameters.Length > 0
+        var ret = method.ReturnType.ToDisplayString(_fqf);
+        var tpDecl = method.TypeParameters.Length > 0
             ? "<" + string.Join(", ", method.TypeParameters.Select(tp => tp.Name)) + ">"
             : string.Empty;
-        var paramList   = BuildParamList(method.Parameters);
-        var argList     = BuildArgList(method.Parameters);
+        var paramList = BuildParamList(method.Parameters);
+        var argList = BuildArgList(method.Parameters);
         var constraints = BuildConstraints(method.TypeParameters);
-        var keyword     = isVirtual ? "sealed override" : "new";
-        var sig         = $"        public {keyword} {ret} {method.Name}{tpDecl}({paramList}){constraints}";
+        var keyword = isVirtual ? "sealed override" : "new";
+        var sig = $"        public {keyword} {ret} {method.Name}{tpDecl}({paramList}){constraints}";
 
         if (method.ReturnsVoid)
         {
@@ -85,7 +88,7 @@ public sealed partial class HideInheritedMembersGenerator
 
     private static void EmitEvent(StringBuilder sb, IEventSymbol evt, bool isVirtual)
     {
-        var type    = evt.Type.ToDisplayString(_fqf);
+        var type = evt.Type.ToDisplayString(_fqf);
         var keyword = isVirtual ? "sealed override" : "new";
         sb.AppendLine($"        public {keyword} event {type} {evt.Name}");
         sb.AppendLine("        {");
@@ -117,13 +120,16 @@ public sealed partial class HideInheritedMembersGenerator
         if (parameters.IsEmpty) return string.Empty;
         return string.Join(", ", parameters.Select(p =>
         {
-            var type     = p.Type.ToDisplayString(_fqf);
+            var type = p.Type.ToDisplayString(_fqf);
             var modifier = p.RefKind switch
             {
-                RefKind.Ref => "ref ", RefKind.Out => "out ", RefKind.In => "in ", _ => ""
+                RefKind.Ref => "ref ",
+                RefKind.Out => "out ",
+                RefKind.In => "in ",
+                _ => ""
             };
             var paramsKw = p.IsParams ? "params " : "";
-            var defVal   = p.HasExplicitDefaultValue ? " = " + RenderDefault(p) : "";
+            var defVal = p.HasExplicitDefaultValue ? " = " + RenderDefault(p) : "";
             return $"{paramsKw}{modifier}{type} {EscapeName(p.Name)}{defVal}";
         }));
     }
@@ -135,7 +141,10 @@ public sealed partial class HideInheritedMembersGenerator
         {
             var modifier = p.RefKind switch
             {
-                RefKind.Ref => "ref ", RefKind.Out => "out ", RefKind.In => "in ", _ => ""
+                RefKind.Ref => "ref ",
+                RefKind.Out => "out ",
+                RefKind.In => "in ",
+                _ => ""
             };
             return $"{modifier}{EscapeName(p.Name)}";
         }));
@@ -148,13 +157,13 @@ public sealed partial class HideInheritedMembersGenerator
         foreach (var tp in typeParams)
         {
             var cs = new List<string>();
-            if (tp.HasReferenceTypeConstraint)  cs.Add("class");
-            if (tp.HasValueTypeConstraint)      cs.Add("struct");
-            if (tp.HasUnmanagedTypeConstraint)  cs.Add("unmanaged");
-            if (tp.HasNotNullConstraint)        cs.Add("notnull");
+            if (tp.HasReferenceTypeConstraint) cs.Add("class");
+            if (tp.HasValueTypeConstraint) cs.Add("struct");
+            if (tp.HasUnmanagedTypeConstraint) cs.Add("unmanaged");
+            if (tp.HasNotNullConstraint) cs.Add("notnull");
             foreach (var ct in tp.ConstraintTypes)
                 cs.Add(ct.ToDisplayString(_fqf));
-            if (tp.HasConstructorConstraint)    cs.Add("new()");
+            if (tp.HasConstructorConstraint) cs.Add("new()");
             if (cs.Count > 0)
                 parts.Add($" where {tp.Name} : {string.Join(", ", cs)}");
         }
@@ -166,9 +175,9 @@ public sealed partial class HideInheritedMembersGenerator
         if (p.ExplicitDefaultValue is null)
             return p.Type.IsReferenceType ? "default!" : "default";
 
-        if (p.ExplicitDefaultValue is bool b)   return b ? "true" : "false";
+        if (p.ExplicitDefaultValue is bool b) return b ? "true" : "false";
         if (p.ExplicitDefaultValue is string s) return "\"" + s + "\"";
-        if (p.ExplicitDefaultValue is char c)   return "'" + c + "'";
+        if (p.ExplicitDefaultValue is char c) return "'" + c + "'";
 
         if (p.ExplicitDefaultValue is float fv)
             return fv.ToString("R", System.Globalization.CultureInfo.InvariantCulture) + "f";
