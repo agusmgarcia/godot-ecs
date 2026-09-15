@@ -7,7 +7,7 @@ namespace ECS.Components;
 /// ECS-aware wrapper around <see cref="Godot.AnimationPlayer"/> that implements <see cref="IComponent"/>.
 /// </summary>
 [GlobalClass]
-[HideInheritedMembers("Name", "Play", "Owner")]
+[HideInheritedMembers("GetAnimationList", "Name", "Pause", "Play", "Stop", "Owner")]
 public partial class AnimationPlayer : Godot.AnimationPlayer, IComponent
 {
     /// <summary>
@@ -30,12 +30,6 @@ public partial class AnimationPlayer : Godot.AnimationPlayer, IComponent
             this.ValueChanged?.Invoke(value);
         }
     }
-
-    /// <summary>
-    /// Returns the list of stored animation keys.
-    /// </summary>
-    protected IReadOnlyCollection<string> AnimationList =>
-        base.GetAnimationList();
 
     /// <summary>
     /// Creates a new animation player
