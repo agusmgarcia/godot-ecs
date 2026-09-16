@@ -1,12 +1,15 @@
-﻿<Project Sdk="Godot.NET.Sdk/4.7.1">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <Authors>Agus Garcia</Authors>
     <Company>ECS</Company>
+    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)/GeneratedFiles</CompilerGeneratedFilesOutputPath>
     <Description>A lightweight Entity Component System (ECS) framework for Godot 4 — core abstractions (Entity, Component, System), low-level utilities (object pooling, typed sets, node tracking), and ready-to-use components (velocity, rotation, height, state machine).</Description>
-    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <DevelopmentDependency>true</DevelopmentDependency>
+    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <ImplicitUsings>enable</ImplicitUsings>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
     <PackageId>ECS</PackageId>
@@ -17,9 +20,12 @@
     <RootNamespace>ECS</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <Version>0.1.0</Version>
     <WarningsAsErrors>Nullable</WarningsAsErrors>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="GodotSharp" Version="4.7.1" />
+  </ItemGroup>
 
   <ItemGroup>
     <None Include="../.github/README.md" Pack="true" PackagePath="/" />
@@ -30,6 +36,28 @@
       Include="../ECS.Generators/ECS.Generators.csproj"
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="**/*.cs" Exclude="bin/**;obj/**">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles/cs/$(TargetFramework)/ECS/Source/</PackagePath>
+      <BuildAction>Compile</BuildAction>
+    </Content>
+
+    <Content Include="$(BaseIntermediateOutputPath)/GeneratedFiles/**/*.cs">
+      <Pack>true</Pack>
+      <PackagePath>contentFiles/cs/$(TargetFramework)/ECS/Generated/</PackagePath>
+      <BuildAction>Compile</BuildAction>
+    </Content>
+  </ItemGroup>
+
+  <Target Name="CreateNuGetPlaceholderFile" BeforeTargets="GenerateNuspec;Pack">
+    <WriteLinesToFile File="$(IntermediateOutputPath)_._" Overwrite="true" Lines="" />
+  </Target>
+
+  <ItemGroup>
+    <None Include="$(IntermediateOutputPath)_._" Pack="true" PackagePath="lib/$(TargetFramework)/_._" />
   </ItemGroup>
 
 </Project>
