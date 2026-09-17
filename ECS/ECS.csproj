@@ -44,16 +44,27 @@
       <PackagePath>contentFiles/cs/$(TargetFramework)/ECS/Source/</PackagePath>
       <BuildAction>Compile</BuildAction>
     </Content>
-
-    <Content Include="$(BaseIntermediateOutputPath)/GeneratedFiles/**/*.cs">
-      <Pack>true</Pack>
-      <PackagePath>contentFiles/cs/$(TargetFramework)/ECS/Generated/</PackagePath>
-      <BuildAction>Compile</BuildAction>
-    </Content>
   </ItemGroup>
 
-  <Target Name="CreateNuGetPlaceholderFile" BeforeTargets="GenerateNuspec;Pack">
+  <Target Name="PrepareNuGetFiles" BeforeTargets="_GetPackageFiles">
     <WriteLinesToFile File="$(IntermediateOutputPath)_._" Overwrite="true" Lines="" />
+    <ItemGroup>
+      <_GeneratedCs Include="$(MSBuildProjectDirectory)/$(CompilerGeneratedFilesOutputPath)/**/*.g.cs"/>
+    </ItemGroup>
+
+    <CreateItem
+      Include="@(_GeneratedCs)"
+      AdditionalMetadata="PackSubDir=$([System.Text.RegularExpressions.Regex]::Replace('%(_GeneratedCs.RecursiveDir)', '^[^/]+/[^/]+/', ''))">
+      <Output TaskParameter="Include" ItemName="_GeneratedCsWithSubDir" />
+    </CreateItem>
+    
+    <ItemGroup>
+      <Content Include="@(_GeneratedCsWithSubDir)">
+        <Pack>true</Pack>
+        <PackagePath>contentFiles/cs/$(TargetFramework)/ECS/Source/%(_GeneratedCsWithSubDir.PackSubDir)</PackagePath>
+        <BuildAction>Compile</BuildAction>
+      </Content>
+    </ItemGroup>
   </Target>
 
   <ItemGroup>

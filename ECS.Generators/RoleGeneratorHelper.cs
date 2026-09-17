@@ -69,12 +69,20 @@ internal static class RoleGeneratorHelper
     }
 
     /// <summary>
-    /// Builds a unique source hint name for the given class and generator suffix.
+    /// Builds a directory-structured source hint name for the given class and generator suffix.
     /// </summary>
-    public static string HintName(INamedTypeSymbol classSymbol, string suffix) =>
-        classSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                   .Replace("global::", "")
-                   .Replace("<", "[")
-                   .Replace(">", "]")
-        + "." + suffix;
+    public static string HintName(INamedTypeSymbol classSymbol, string suffix)
+    {
+        var ns = classSymbol.ContainingNamespace.IsGlobalNamespace
+            ? null
+            : classSymbol.ContainingNamespace.ToDisplayString();
+
+        var dir = ns is null ? string.Empty
+            : ns.StartsWith("ECS.", StringComparison.Ordinal) ? ns.Substring(4).Replace('.', '/')
+            : ns.Equals("ECS", StringComparison.Ordinal) ? string.Empty
+            : ns.Replace('.', '/');
+
+        var fileName = classSymbol.Name + "." + suffix;
+        return dir.Length > 0 ? dir + "/" + fileName : fileName;
+    }
 }
