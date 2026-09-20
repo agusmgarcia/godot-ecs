@@ -3,21 +3,21 @@ using ECS.Core;
 namespace ECS.Components;
 
 /// <summary>
-/// Base class for all states managed by <see cref="ECS.Components.StatesMachine"/>.
+/// Base class for all states managed by <see cref="ECS.Components.StateMachine"/>.
 /// </summary>
 public abstract partial class State : Component
 {
     /// <summary>
     /// The current state machine parent.
     /// </summary>
-    public StatesMachine? Parent { get; private set; }
+    public StateMachine? Parent { get; private set; }
 
     /// <inheritdoc/>
     protected override void OnInit()
     {
         base.OnInit();
 
-        this.Parent = base.GetParentOrNull<StatesMachine>();
+        this.Parent = base.GetParentOrNull<StateMachine>();
     }
 
     /// <summary>

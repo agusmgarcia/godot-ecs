@@ -7,12 +7,12 @@ namespace ECS.Components;
 /// <summary>
 /// Component that acts as a pooled finite state machine; manages a single active <see cref="ECS.Components.State"/> child component and transitions between states each physics frame.
 /// </summary>
-public abstract partial class StatesMachine : Component<State?>
+public abstract partial class StateMachine : Component<State?>
 {
     /// <summary>
     /// Initialises the component with an empty state.
     /// </summary>
-    protected StatesMachine()
+    protected StateMachine()
         : base(null) { }
 
     /// <inheritdoc/>
