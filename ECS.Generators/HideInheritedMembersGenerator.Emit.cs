@@ -13,8 +13,6 @@ public sealed partial class HideInheritedMembersGenerator
     {
         sb.AppendLine("        /// <inheritdoc/>");
         sb.AppendLine("        [EditorBrowsable(EditorBrowsableState.Never)]");
-        sb.AppendLine("        [global::System.Obsolete(\"\", true)]");
-        sb.AppendLine("#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member");
 
         switch (mth.Symbol)
         {
@@ -28,7 +26,6 @@ public sealed partial class HideInheritedMembersGenerator
                 EmitEvent(sb, evt, mth.IsVirtualOrOverride); break;
         }
 
-        sb.AppendLine("#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member");
         sb.AppendLine();
     }
 

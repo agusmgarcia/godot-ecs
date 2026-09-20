@@ -75,8 +75,6 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         {
             sb.AppendLine($"{indent}    /// <inheritdoc/>");
             sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-            sb.AppendLine($"{indent}    [global::System.Obsolete(\"\", true)]");
-            sb.AppendLine("#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member");
             sb.AppendLine($"{indent}    public sealed override void _EnterTree()");
             sb.AppendLine($"{indent}    {{");
             sb.AppendLine($"{indent}        base._EnterTree();");
@@ -90,7 +88,6 @@ public sealed class ComponentGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}        this._siblingEntitiesTracker.Track((global::Godot.Node)this.Owner);");
             sb.AppendLine($"{indent}        this.OnInit();");
             sb.AppendLine($"{indent}    }}");
-            sb.AppendLine("#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member");
             sb.AppendLine();
         }
 
@@ -99,11 +96,8 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         {
             sb.AppendLine($"{indent}    /// <inheritdoc/>");
             sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-            sb.AppendLine($"{indent}    [global::System.Obsolete(\"\", true)]");
-            sb.AppendLine("#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member");
             sb.AppendLine($"{indent}    public sealed override void _Ready() =>");
             sb.AppendLine($"{indent}        base._Ready();");
-            sb.AppendLine("#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member");
             sb.AppendLine();
         }
 
@@ -112,14 +106,11 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         {
             sb.AppendLine($"{indent}    /// <inheritdoc/>");
             sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-            sb.AppendLine($"{indent}    [global::System.Obsolete(\"\", true)]");
-            sb.AppendLine("#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member");
             sb.AppendLine($"{indent}    public sealed override void _PhysicsProcess(double delta)");
             sb.AppendLine($"{indent}    {{");
             sb.AppendLine($"{indent}        base._PhysicsProcess(delta);");
             sb.AppendLine($"{indent}        this.OnUpdate(delta);");
             sb.AppendLine($"{indent}    }}");
-            sb.AppendLine("#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member");
             sb.AppendLine();
         }
 
@@ -128,8 +119,6 @@ public sealed class ComponentGenerator : IIncrementalGenerator
         {
             sb.AppendLine($"{indent}    /// <inheritdoc/>");
             sb.AppendLine($"{indent}    [global::System.ComponentModel.EditorBrowsable(global::System.ComponentModel.EditorBrowsableState.Never)]");
-            sb.AppendLine($"{indent}    [global::System.Obsolete(\"\", true)]");
-            sb.AppendLine("#pragma warning disable CS0809 // Obsolete member overrides non-obsolete member");
             sb.AppendLine($"{indent}    public sealed override void _ExitTree()");
             sb.AppendLine($"{indent}    {{");
             sb.AppendLine($"{indent}        this.OnDispose();");
@@ -143,7 +132,6 @@ public sealed class ComponentGenerator : IIncrementalGenerator
                 sb.AppendLine($"{indent}        this.Owner = null;");
             sb.AppendLine($"{indent}        base._ExitTree();");
             sb.AppendLine($"{indent}    }}");
-            sb.AppendLine("#pragma warning restore CS0809 // Obsolete member overrides non-obsolete member");
             sb.AppendLine();
         }
 

@@ -41,8 +41,8 @@ public abstract partial class AnimationPlayer : Godot.AnimationPlayer, IComponen
     /// </summary>
     protected virtual void OnInit()
     {
-        base.AnimationStarted += this.OnAnimationStarted;
         base.AnimationFinished += this.OnAnimationFinished;
+        base.AnimationStarted += this.OnAnimationStarted;
         this.OnAnimationStarted(base.CurrentAnimation);
     }
 
