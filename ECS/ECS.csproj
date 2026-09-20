@@ -3,13 +3,9 @@
   <PropertyGroup>
     <Authors>Agus Garcia</Authors>
     <Company>ECS</Company>
-    <CompilerGeneratedFilesOutputPath>$(BaseIntermediateOutputPath)/GeneratedFiles</CompilerGeneratedFilesOutputPath>
     <Description>A lightweight Entity Component System (ECS) framework for Godot 4 — core abstractions (Entity, Component, System), low-level utilities (object pooling, typed sets, node tracking), and ready-to-use components (velocity, rotation, height, state machine).</Description>
-    <DevelopmentDependency>true</DevelopmentDependency>
-    <EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <ImplicitUsings>enable</ImplicitUsings>
-    <IncludeBuildOutput>false</IncludeBuildOutput>
     <LangVersion>14.0</LangVersion>
     <Nullable>enable</Nullable>
     <PackageId>ECS</PackageId>
@@ -36,39 +32,6 @@
       Include="../ECS.Generators/ECS.Generators.csproj"
       OutputItemType="Analyzer"
       ReferenceOutputAssembly="false" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Include="**/*.cs" Exclude="bin/**;obj/**">
-      <Pack>true</Pack>
-      <PackagePath>contentFiles/cs/$(TargetFramework)/ECS/Source/</PackagePath>
-      <BuildAction>Compile</BuildAction>
-    </Content>
-  </ItemGroup>
-
-  <Target Name="PrepareNuGetFiles" BeforeTargets="_GetPackageFiles">
-    <WriteLinesToFile File="$(IntermediateOutputPath)_._" Overwrite="true" Lines="" />
-    <ItemGroup>
-      <_GeneratedCs Include="$(MSBuildProjectDirectory)/$(CompilerGeneratedFilesOutputPath)/**/*.g.cs"/>
-    </ItemGroup>
-
-    <CreateItem
-      Include="@(_GeneratedCs)"
-      AdditionalMetadata="PackSubDir=$([System.Text.RegularExpressions.Regex]::Replace('%(_GeneratedCs.RecursiveDir)', '^[^/]+/[^/]+/', ''))">
-      <Output TaskParameter="Include" ItemName="_GeneratedCsWithSubDir" />
-    </CreateItem>
-    
-    <ItemGroup>
-      <Content Include="@(_GeneratedCsWithSubDir)">
-        <Pack>true</Pack>
-        <PackagePath>contentFiles/cs/$(TargetFramework)/ECS/Source/%(_GeneratedCsWithSubDir.PackSubDir)</PackagePath>
-        <BuildAction>Compile</BuildAction>
-      </Content>
-    </ItemGroup>
-  </Target>
-
-  <ItemGroup>
-    <None Include="$(IntermediateOutputPath)_._" Pack="true" PackagePath="lib/$(TargetFramework)/_._" />
   </ItemGroup>
 
 </Project>

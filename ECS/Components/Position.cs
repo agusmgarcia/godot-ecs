@@ -6,8 +6,7 @@ namespace ECS.Components;
 /// <summary>
 /// Component that mirrors the owning entity's world position as a <see cref="Vector3"/> value; writes propagate to the entity's <see cref="Godot.Node3D.Position"/> and external scene-tree transform changes are pushed back via the entity's local-transform notification.
 /// </summary>
-[GlobalClass]
-public partial class Position : Component<Vector3>
+public abstract partial class Position : Component<Vector3>
 {
     /// <summary>
     /// The current value.

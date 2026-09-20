@@ -6,8 +6,7 @@ namespace ECS.Components;
 /// <summary>
 /// Component that mirrors the entity's 3D scale as a <see cref="Vector3"/> value; writing <see cref="ECS.Core.Component{TValue}.Value"/> immediately updates the entity's scale. Defaults to <see cref="Vector3.One"/>.
 /// </summary>
-[GlobalClass]
-public partial class Scale : Component<Vector3>
+public abstract partial class Scale : Component<Vector3>
 {
     /// <summary>
     /// The current value.

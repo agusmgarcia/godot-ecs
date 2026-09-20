@@ -6,8 +6,7 @@ namespace ECS.Components;
 /// <summary>
 /// Component that tracks whether the owning <see cref="Godot.CharacterBody3D"/> entity is currently on the floor; exposes the result as a <c>bool</c> value updated every physics frame.
 /// </summary>
-[GlobalClass]
-public partial class FloorDetector : Component<bool>
+public abstract partial class FloorDetector : Component<bool>
 {
     /// <summary>
     /// Initialises the component with an initial value of <c>false</c>.

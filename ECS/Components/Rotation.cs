@@ -7,8 +7,7 @@ namespace ECS.Components;
 /// <summary>
 /// Component that smoothly rotates the entity to face a world-space target position each physics frame.
 /// </summary>
-[GlobalClass]
-public partial class Rotation : Component<Vector3>
+public abstract partial class Rotation : Component<Vector3>
 {
     /// <summary>
     /// Rotation speed used when lerping toward the target orientation (degrees per second).

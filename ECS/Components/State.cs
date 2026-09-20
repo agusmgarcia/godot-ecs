@@ -7,8 +7,7 @@ namespace ECS.Components;
 /// <summary>
 /// Base class for all states managed by <see cref="ECS.Entities.StatesMachine"/>.
 /// </summary>
-[GlobalClass]
-public partial class State : Component
+public abstract partial class State : Component
 {
     /// <summary>
     /// The current state machine parent.

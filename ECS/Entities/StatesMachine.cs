@@ -2,15 +2,13 @@ using ECS.Components;
 using ECS.Core;
 using ECS.Interfaces;
 using ECS.Utils;
-using Godot;
 
 namespace ECS.Entities;
 
 /// <summary>
 /// Entity that acts as a pooled finite state machine; manages a single active <see cref="ECS.Components.State"/> child component and transitions between states each physics frame.
 /// </summary>
-[GlobalClass]
-public partial class StatesMachine : Entity
+public abstract partial class StatesMachine : Entity
 {
     /// <summary>
     /// Transitions to <typeparamref name="TNewState"/>, pooling the current state and initialising the new one with <paramref name="stateParams"/>; no-ops if the current state blocks transitions via <see cref="ECS.Components.State.ReadyToTransition"/> and <paramref name="force"/> is <c>false</c>.

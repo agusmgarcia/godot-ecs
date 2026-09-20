@@ -7,8 +7,7 @@ namespace ECS.Components;
 /// <summary>
 /// Component that drives 3D physics velocity, applying gravity, air friction, and a max speed limit.
 /// </summary>
-[GlobalClass]
-public partial class Velocity : Component<Vector3>
+public abstract partial class Velocity : Component<Vector3>
 {
     /// <summary>
     /// Downward acceleration applied to the entity while airborne (m/s²).
