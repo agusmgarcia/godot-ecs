@@ -78,10 +78,10 @@ ECS.Generators/
 ├── HideInheritedMembersGenerator.cs        — hides/seals inherited Godot members
 ├── HideInheritedMembersGenerator.Collect.cs — member collection logic
 ├── HideInheritedMembersGenerator.Emit.cs   — C# source emission helpers
+├── RoleGenerator.cs                        — abstract base: shared pipeline, scaffold & static utilities for role generators
 ├── EntityGenerator.cs                      — IEntity boilerplate generator
 ├── ComponentGenerator.cs                   — IComponent boilerplate generator
-├── SystemGenerator.cs                      — ISystem boilerplate generator
-└── RoleGeneratorHelper.cs                  — shared utilities for role generators
+└── SystemGenerator.cs                      — ISystem boilerplate generator
 ```
 
 Generic classes split into partial files use the naming convention `TypeName.TTypeParam.cs` (e.g., `Component.TValue.cs`, `NodesTracker.TNode.cs`).
@@ -103,6 +103,16 @@ Generic classes split into partial files use the naming convention `TypeName.TTy
 ### Source generators (`ECS.Generators/`)
 
 The generators project targets `netstandard2.0` and is wired into `ECS.csproj` as `OutputItemType="Analyzer"`. It is **not** packable (`IsPackable=false`). All generators run in parallel at compile time.
+
+**`RoleGenerator`** — `public abstract` base class shared by `EntityGenerator`, `ComponentGenerator`, and `SystemGenerator`. Owns:
+
+- The incremental pipeline (`Initialize`): `CreateSyntaxProvider` → `Combine` with `CompilationProvider` → `RegisterSourceOutput`.
+- The generation scaffold (`Generate`): resolves the semantic symbol, calls `ImplementsDirectly` to guard on the target interface, collects `own` names via `GetOwnNames`, writes the file header, delegates to `EmitMembers`, then writes the footer and calls `spc.AddSource`.
+- `protected static bool ImplementsDirectly(INamedTypeSymbol, string)` — checks whether a class directly (not via inheritance) lists the given interface FQN.
+- `public static string HintName(INamedTypeSymbol, string)` — builds a directory-structured source hint name; also used by `HideInheritedMembersGenerator`.
+- `private static` helpers `GetOwnNames`, `WriteHeader`, `WriteFooter` — used exclusively inside `Generate`.
+
+Subclasses implement two abstract properties (`TargetInterface`, `HintSuffix`) and one abstract method (`EmitMembers`) containing only the role-specific member emission.
 
 **`HideInheritedMembersGenerator`** — triggered by `[HideInheritedMembers("Name")]`. For every annotated class, walks the base-type hierarchy (stopping before `GodotObject`) and emits a partial class that:
 

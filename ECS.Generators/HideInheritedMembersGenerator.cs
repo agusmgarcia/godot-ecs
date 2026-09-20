@@ -126,7 +126,7 @@ public sealed partial class HideInheritedMembersGenerator : IIncrementalGenerato
         sb.AppendLine("    }");
         if (ns is not null) sb.AppendLine("}");
 
-        var hintName = RoleGeneratorHelper.HintName(classSymbol, "HideInheritedMembers.g.cs");
+        var hintName = RoleGenerator.HintName(classSymbol, "HideInheritedMembers.g.cs");
         spc.AddSource(hintName, SourceText.From(sb.ToString(), Encoding.UTF8));
     }
 

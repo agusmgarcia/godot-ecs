@@ -1,7 +1,5 @@
 using System.Text;
 using Microsoft.CodeAnalysis;
-using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Microsoft.CodeAnalysis.Text;
 
 namespace ECS.Generators;
 
@@ -11,45 +9,21 @@ namespace ECS.Generators;
 /// overrides, and the <c>Components</c>, <c>Children</c>, and <c>Parent</c> members.
 /// </summary>
 [Generator]
-public sealed class EntityGenerator : IIncrementalGenerator
+public sealed class EntityGenerator : RoleGenerator
 {
-    private const string TargetInterface = "ECS.Interfaces.IEntity";
+    /// <inheritdoc/>
+    protected override string TargetInterface => "ECS.Interfaces.IEntity";
 
     /// <inheritdoc/>
-    public void Initialize(IncrementalGeneratorInitializationContext context)
+    protected override string HintSuffix => "Entity.g.cs";
+
+    /// <inheritdoc/>
+    protected override void EmitMembers(
+        INamedTypeSymbol classSymbol,
+        HashSet<string> own,
+        StringBuilder sb,
+        string indent)
     {
-        var candidates = context.SyntaxProvider
-            .CreateSyntaxProvider(
-                predicate: static (node, _) => node is ClassDeclarationSyntax c && c.BaseList != null,
-                transform: static (ctx, _) => (ClassDeclarationSyntax)ctx.Node)
-            .Where(static c => c is not null);
-
-        var combined = context.CompilationProvider.Combine(candidates.Collect());
-
-        context.RegisterSourceOutput(combined, static (spc, source) =>
-        {
-            var (compilation, classes) = source;
-            foreach (var classDecl in classes)
-                Generate(spc, compilation, classDecl);
-        });
-    }
-
-    private static void Generate(
-        SourceProductionContext spc,
-        Compilation compilation,
-        ClassDeclarationSyntax classDecl)
-    {
-        var model = compilation.GetSemanticModel(classDecl.SyntaxTree);
-        if (model.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol classSymbol) return;
-
-        // Only act when the class directly implements IEntity (not inherited).
-        if (!ImplementsDirectly(classSymbol, TargetInterface)) return;
-
-        var own = RoleGeneratorHelper.GetOwnNames(classSymbol);
-
-        var sb = new StringBuilder();
-        RoleGeneratorHelper.WriteHeader(sb, classSymbol, out var ns, out var indent);
-
         // --- Fields ---
         if (!own.Contains("_components"))
             sb.AppendLine($"{indent}    private readonly global::ECS.Utils.TypedSet<global::ECS.Interfaces.IComponent> _components = [];");
@@ -233,17 +207,5 @@ public sealed class EntityGenerator : IIncrementalGenerator
             sb.AppendLine($"{indent}    private void OnChildUntracked(global::ECS.Interfaces.IEntity entity) {{ }}");
             sb.AppendLine();
         }
-
-        RoleGeneratorHelper.WriteFooter(sb, ns);
-
-        var hint = RoleGeneratorHelper.HintName(classSymbol, "Entity.g.cs");
-        spc.AddSource(hint, SourceText.From(sb.ToString(), Encoding.UTF8));
-    }
-
-    private static bool ImplementsDirectly(INamedTypeSymbol classSymbol, string ifaceFqn)
-    {
-        foreach (var iface in classSymbol.Interfaces)
-            if (iface.ToDisplayString() == ifaceFqn) return true;
-        return false;
     }
 }
