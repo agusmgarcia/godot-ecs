@@ -1,11 +1,9 @@
 using ECS.Core;
-using ECS.Entities;
-using Godot;
 
 namespace ECS.Components;
 
 /// <summary>
-/// Base class for all states managed by <see cref="ECS.Entities.StatesMachine"/>.
+/// Base class for all states managed by <see cref="ECS.Components.StatesMachine"/>.
 /// </summary>
 public abstract partial class State : Component
 {
@@ -19,7 +17,7 @@ public abstract partial class State : Component
     {
         base.OnInit();
 
-        this.Parent = (this as Node).GetParentOrNull<StatesMachine>();
+        this.Parent = base.GetParentOrNull<StatesMachine>();
     }
 
     /// <summary>

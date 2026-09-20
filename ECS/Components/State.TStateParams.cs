@@ -7,7 +7,7 @@ public abstract partial class State<TStateParams> : State
     where TStateParams : struct
 {
     /// <summary>
-    /// Parameters supplied by the last <see cref="ECS.Entities.StatesMachine.SetState{TNewState, TStateParams}"/> call.
+    /// Parameters supplied by the last <see cref="ECS.Components.StatesMachine.SetState{TNewState, TStateParams}"/> call.
     /// </summary>
     public TStateParams StateParams { get; internal set; } = default;
 
