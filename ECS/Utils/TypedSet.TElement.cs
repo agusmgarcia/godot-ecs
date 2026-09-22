@@ -7,7 +7,7 @@ namespace ECS.Utils;
 /// </summary>
 public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElement>
 {
-    private static readonly Dictionary<Type, ICollection> _EMPTY_SETS = [];
+    private static readonly Dictionary<Type, IEnumerable> _EMPTY_SETS = [];
     private static readonly object?[] _ARGS = [1];
 
     /// <inheritdoc/>
@@ -19,13 +19,13 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
         ((ISet<TElement>)this._root).IsReadOnly;
 
     private readonly HashSet<TElement> _root;
-    private readonly Dictionary<Type, ICollection> _elements = [];
+    private readonly Dictionary<Type, IEnumerable> _elements = [];
 
     /// <summary>
     /// Initialises an empty set with a base-type bucket obtained from <see cref="ElementsPool"/>.
     /// </summary>
     public TypedSet() =>
-        this._root = (HashSet<TElement>)(this._elements[typeof(TElement)] = (ICollection)ElementsPool.GetOrCreate<HashSet<TElement>>());
+        this._root = (HashSet<TElement>)(this._elements[typeof(TElement)] = ElementsPool.GetOrCreate<HashSet<TElement>>());
 
     /// <inheritdoc/>
     public bool Add(TElement item)
@@ -36,7 +36,7 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
         {
             if (!this._elements.TryGetValue(type, out var set))
             {
-                set = (ICollection)ElementsPool.GetOrCreate(typeof(HashSet<>).MakeGenericType(type));
+                set = (IEnumerable)ElementsPool.GetOrCreate(typeof(HashSet<>).MakeGenericType(type));
                 this._elements.Add(type, set);
             }
 
@@ -53,7 +53,7 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
     {
         if (!TypedSet<TElement>._EMPTY_SETS.TryGetValue(typeof(TDerivedElement), out var emptySet))
         {
-            emptySet = (ICollection)ElementsPool.GetOrCreate<HashSet<TDerivedElement>>();
+            emptySet = ElementsPool.GetOrCreate<HashSet<TDerivedElement>>();
             TypedSet<TElement>._EMPTY_SETS.Add(typeof(TDerivedElement), emptySet);
         }
 
@@ -82,7 +82,7 @@ public sealed class TypedSet<TElement> : ISet<TElement>, IReadonlyTypedSet<TElem
                 TypedSet<TElement>._ARGS[0] = item;
                 result = result || (bool)set.GetType().GetMethod("Remove")!.Invoke(set, TypedSet<TElement>._ARGS)!;
 
-                if (set.Count == 0 && type != typeof(TElement))
+                if ((int)set.GetType().GetProperty("Count")!.GetMethod!.Invoke(set, null)! == 0 && type != typeof(TElement))
                 {
                     this._elements.Remove(type);
                     ElementsPool.Set(set);
