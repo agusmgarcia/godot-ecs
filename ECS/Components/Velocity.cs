@@ -10,23 +10,8 @@ namespace ECS.Components;
 public abstract partial class Velocity : Component<Vector3>
 {
     /// <summary>
-    /// Downward acceleration applied to the entity while airborne (m/s²).
-    /// </summary>
-    [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:m/s²")]
-    public float Gravity { get; protected set; } =
-        (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
-
-    /// <summary>
-    /// Horizontal speed loss per second applied while the entity is airborne (m/s²).
-    /// </summary>
-    [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:m/s²")]
-    public float AirFriction { get; protected set; } =
-        (float)ProjectSettings.GetSetting("physics/3d/default_linear_damp");
-
-    /// <summary>
     /// Maximum horizontal speed the entity can reach (m/s).
     /// </summary>
-    [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:m/s")]
     public float MaxSpeed { get; protected set; }
 
     private FloorDetector? _floorDetector;
@@ -34,6 +19,8 @@ public abstract partial class Velocity : Component<Vector3>
     private Vector3 _direction;
     private float _pendingSpeedDelta;
     private float _speed;
+    private float _gravity;
+    private float _airFriction;
 
     /// <summary>
     /// Initialises the component with zero initial velocity.
@@ -64,6 +51,8 @@ public abstract partial class Velocity : Component<Vector3>
         this._direction = Vector3.Zero;
         this._pendingSpeedDelta = 0;
         this._speed = 0;
+        this._gravity = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
+        this._airFriction = (float)ProjectSettings.GetSetting("physics/3d/default_linear_damp");
 
         base.ValueChanged += this.OnVelocityChanged;
         this.OnVelocityChanged((base.Owner as CharacterBody3D)?.Velocity ?? Vector3.Zero);
@@ -88,12 +77,12 @@ public abstract partial class Velocity : Component<Vector3>
         this._pendingSpeedDelta = 0f;
 
         if (!(this._floorDetector?.Value ?? false))
-            this._speed = Mathf.Max(this._speed - this.AirFriction * (float)delta, 0f);
+            this._speed = Mathf.Max(this._speed - this._airFriction * (float)delta, 0f);
 
         var velocity = this._direction * this._speed;
         velocity.Y = (this._floorDetector?.Value ?? false)
             ? (velocity.Y <= 0 ? 0 : velocity.Y)
-            : (base.Value.Y - this.Gravity * (float)delta);
+            : (base.Value.Y - this._gravity * (float)delta);
 
         base.Value = velocity;
     }
@@ -120,6 +109,8 @@ public abstract partial class Velocity : Component<Vector3>
         this.OnVelocityChanged((base.Owner as CharacterBody3D)?.Velocity ?? Vector3.Zero);
         base.ValueChanged -= this.OnVelocityChanged;
 
+        this._airFriction = 0;
+        this._gravity = 0;
         this._speed = 0;
         this._pendingSpeedDelta = 0;
         this._direction = Vector3.Zero;
