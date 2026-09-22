@@ -19,6 +19,14 @@ public abstract class RoleGenerator : IIncrementalGenerator
     /// <summary>File-name suffix for the generated hint, e.g. <c>"Component.g.cs"</c>.</summary>
     protected abstract string HintSuffix { get; }
 
+    /// <summary>
+    /// Returns <see langword="true"/> when this generator should process <paramref name="classSymbol"/>.
+    /// The default implementation checks whether the class directly implements <see cref="TargetInterface"/>.
+    /// Override to widen the trigger condition (e.g. to also match a generic variant of the interface).
+    /// </summary>
+    protected virtual bool ShouldProcess(INamedTypeSymbol classSymbol) =>
+        ImplementsDirectly(classSymbol, this.TargetInterface);
+
     /// <inheritdoc/>
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
@@ -46,7 +54,7 @@ public abstract class RoleGenerator : IIncrementalGenerator
         var model = compilation.GetSemanticModel(classDecl.SyntaxTree);
         if (model.GetDeclaredSymbol(classDecl) is not INamedTypeSymbol classSymbol) return;
 
-        if (!ImplementsDirectly(classSymbol, this.TargetInterface)) return;
+        if (!this.ShouldProcess(classSymbol)) return;
 
         var own = GetOwnNames(classSymbol);
 
@@ -95,7 +103,11 @@ public abstract class RoleGenerator : IIncrementalGenerator
             : ns.Equals("ECS", StringComparison.Ordinal) ? string.Empty
             : ns.Replace('.', '/');
 
-        var fileName = classSymbol.Name + "." + suffix;
+        var arity = classSymbol.TypeParameters.Length > 0
+            ? "`" + classSymbol.TypeParameters.Length
+            : string.Empty;
+
+        var fileName = classSymbol.Name + arity + "." + suffix;
         return dir.Length > 0 ? dir + "/" + fileName : fileName;
     }
 

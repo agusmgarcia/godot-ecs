@@ -4,17 +4,35 @@ using Microsoft.CodeAnalysis;
 namespace ECS.Generators;
 
 /// <summary>
-/// For every class implementing <c>ECS.Interfaces.IComponent</c>, generates the full component
-/// boilerplate: entity reference, siblingComponent tracker, lifecycle overrides, and hooks.
+/// For every class directly implementing <c>ECS.Interfaces.IComponent</c>, generates the full
+/// component boilerplate: entity reference, sibling trackers, lifecycle overrides, and hooks.
 /// </summary>
 [Generator]
-public sealed class ComponentGenerator : RoleGenerator
+public class ComponentGenerator : RoleGenerator
 {
     /// <inheritdoc/>
     protected override string TargetInterface => "ECS.Interfaces.IComponent";
 
     /// <inheritdoc/>
     protected override string HintSuffix => "Component.g.cs";
+
+    /// <summary>
+    /// Returns <see langword="true"/> when a base class already carries the standard
+    /// <c>IComponent</c> boilerplate (i.e. the base already implements <c>IComponent</c>
+    /// and its boilerplate was therefore already generated for it).
+    /// </summary>
+    protected static bool BaseHasComponentBoilerplate(INamedTypeSymbol classSymbol)
+    {
+        var baseType = classSymbol.BaseType;
+        while (baseType != null)
+        {
+            foreach (var iface in baseType.AllInterfaces)
+                if (iface.ToDisplayString() == "ECS.Interfaces.IComponent")
+                    return true;
+            baseType = baseType.BaseType;
+        }
+        return false;
+    }
 
     /// <inheritdoc/>
     protected override void EmitMembers(
@@ -23,6 +41,11 @@ public sealed class ComponentGenerator : RoleGenerator
         StringBuilder sb,
         string indent)
     {
+        // Skip standard IComponent boilerplate when the base class already carries it.
+        var skipBoilerplate = BaseHasComponentBoilerplate(classSymbol);
+        if (skipBoilerplate)
+            return;
+
         // --- Fields & properties ---
         if (!own.Contains("Owner"))
         {
