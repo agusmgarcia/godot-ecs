@@ -61,6 +61,22 @@ public abstract partial class StateMachine : Component<State?>
         base.AddChild(newState);
     }
 
+    /// <summary>
+    /// Clears the current state; no-ops if the current state blocks transitions via <see cref="ECS.Components.State.ReadyToTransition"/> and <paramref name="force"/> is <c>false</c>.
+    /// </summary>
+    protected void ClearState(bool force = false)
+    {
+        var currentState = base.GetChildOrNull<State>(0);
+        if (!force && currentState != null && !currentState.ReadyToTransition())
+            return;
+
+        if (currentState != null)
+        {
+            base.RemoveChild(currentState);
+            ElementsPool.Set(currentState);
+        }
+    }
+
     private void OnStateRemoved(Node? node)
     {
         if (node is not State state)
