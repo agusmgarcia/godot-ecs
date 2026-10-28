@@ -1,4 +1,3 @@
 <Solution>
   <Project Path="ECS/ECS.csproj" />
-  <Project Path="ECS.Generators/ECS.Generators.csproj" />
 </Solution>
