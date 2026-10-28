@@ -8,7 +8,7 @@ namespace ECS.Utils;
 public static class NodeExtensions
 {
     /// <summary>
-    /// Subscribes to sibling nodes of type TSibling entering/leaving the scene.
+    /// Subscribes to sibling nodes of type <typeparamref name="TSibling"/> entering/leaving the scene.
     /// </summary>
     public static void TrackSiblings<TSibling>(
         this Node self,
@@ -22,7 +22,7 @@ public static class NodeExtensions
             NodeExtensions.TrackNodes<TSibling>(self, onTracked, onUntracked, name, direct, unique, (node) => node.Owner);
 
     /// <summary>
-    /// Subscribes to child nodes of type TChild entering/leaving the scene.
+    /// Subscribes to child nodes of type <typeparamref name="TChild"/> entering/leaving the scene.
     /// </summary>
     public static void TrackChildren<TChild>(
         this Node self,
@@ -141,5 +141,62 @@ public static class NodeExtensions
 
         self.TreeEntered += OnTreeEntered;
         self.TreeExiting += OnTreeExiting;
+    }
+
+    private static readonly Godot.Collections.Array<Rid> INTERSECT_RAY_PARAMS_EXCLUDE = [];
+
+    /// <summary>
+    /// Casts a ray from <paramref name="self"/>'s global position to <paramref name="to"/> and returns the first physics hit, or <c>null</c> if nothing was hit.
+    /// The caller node and any <see cref="CollisionObject3D"/> nodes in <paramref name="excludeList"/> are automatically excluded from the query.
+    /// </summary>
+    public static NodeExtensions.IntersectRayResult? IntersectRay(
+        this Node3D self,
+        in Vector3 to,
+        uint collisionMask = 4294967295,
+        bool collideWithAreas = false,
+        params IReadOnlyCollection<Node3D> excludeList)
+    {
+        NodeExtensions.INTERSECT_RAY_PARAMS_EXCLUDE.Clear();
+
+        foreach (var exclude in excludeList)
+            if (exclude is CollisionObject3D collisionObjectExclude)
+                NodeExtensions.INTERSECT_RAY_PARAMS_EXCLUDE.Add(collisionObjectExclude.GetRid());
+
+        if (self is CollisionObject3D collisionObjectFrom)
+            NodeExtensions.INTERSECT_RAY_PARAMS_EXCLUDE.Add(collisionObjectFrom.GetRid());
+
+        var raycast = PhysicsRayQueryParameters3D.Create(
+            self.GlobalPosition,
+            to,
+            collisionMask,
+            NodeExtensions.INTERSECT_RAY_PARAMS_EXCLUDE);
+
+        raycast.CollideWithAreas = collideWithAreas;
+
+        var result = self.GetWorld3D().DirectSpaceState.IntersectRay(raycast);
+        if (result.Count <= 0)
+            return null;
+
+        return new IntersectRayResult
+        {
+            Collider = result["collider"].As<Node3D>(),
+            Normal = result["normal"].AsVector3(),
+        };
+    }
+
+    /// <summary>
+    /// Holds the result of a successful <see cref="IntersectRay"/> call.
+    /// </summary>
+    public readonly record struct IntersectRayResult
+    {
+        /// <summary>
+        /// The Godot object that was hit by the ray (e.g. a <see cref="CollisionObject3D"/> or <see cref="Area3D"/>).
+        /// </summary>
+        public required Node3D Collider { get; init; }
+
+        /// <summary>
+        /// The outward surface normal at the point of intersection, in world space.
+        /// </summary>
+        public required Vector3 Normal { get; init; }
     }
 }
