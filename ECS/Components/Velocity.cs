@@ -20,7 +20,15 @@ public partial class Velocity : Node
     [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:°/s")]
     public float MaxAngularSpeed { get; private set; }
 
+    /// <summary>
+    /// Maximum downward speed the entity can reach while falling due to gravity (m/s). Set to 0 to disable gravity.
+    /// </summary>
+    [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:m/s")]
+    public float GravityMaxSpeed { get; private set; }
+
     private CharacterBody3D? _owner;
+    private float _gravitySpeed;
+    private float _gravityAcceleration;
     private Vector3 _direction;
     private float _speed;
     private float _acceleration;
@@ -62,6 +70,8 @@ public partial class Velocity : Node
         base._EnterTree();
 
         this._owner = base.GetOwner<CharacterBody3D>();
+        this._gravitySpeed = 0f;
+        this._gravityAcceleration = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
         this._direction = Vector3.Zero;
         this._speed = 0f;
         this._acceleration = 0f;
@@ -88,7 +98,11 @@ public partial class Velocity : Node
         if (this._owner == null)
             return;
 
-        this._owner.Velocity = this._direction * this._speed;
+        this._gravitySpeed = Mathf.Clamp(!this._owner.IsOnFloor()
+            ? this._gravitySpeed + this._gravityAcceleration * delta
+            : 1f, 0, this.GravityMaxSpeed);
+
+        this._owner.Velocity = this._direction * this._speed + Vector3.Down * this._gravitySpeed;
         this._owner.MoveAndSlide();
     }
 
@@ -168,6 +182,8 @@ public partial class Velocity : Node
         this._rotationDirection = Vector3.Zero;
         this._angularSpeed = 0f;
         this._angularAcceleration = 0f;
+        this._gravitySpeed = 0f;
+        this._gravityAcceleration = 0f;
         this._owner = null;
 
         base._ExitTree();
