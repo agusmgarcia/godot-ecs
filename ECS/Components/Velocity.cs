@@ -9,18 +9,6 @@ namespace ECS.Components;
 public partial class Velocity : Node
 {
     /// <summary>
-    /// Maximum horizontal speed the entity can reach (m/s).
-    /// </summary>
-    [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:m/s")]
-    public float MaxSpeed { get; private set; }
-
-    /// <summary>
-    /// Maximum angular speed the entity can reach while rotating (°/s).
-    /// </summary>
-    [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:°/s")]
-    public float MaxAngularSpeed { get; private set; }
-
-    /// <summary>
     /// Maximum downward speed the entity can reach while falling due to gravity (m/s). Set to 0 to disable gravity.
     /// </summary>
     [Export(PropertyHint.Range, "0,100,or_greater,hide_control,suffix:m/s")]
@@ -31,9 +19,11 @@ public partial class Velocity : Node
     private float _gravityAcceleration;
     private Vector3 _direction;
     private float _speed;
+    private float _maxSpeed;
     private float _acceleration;
     private Vector3 _rotationDirection;
     private float _angularSpeed;
+    private float _maxAngularSpeed;
     private float _angularAcceleration;
 
     /// <summary>
@@ -43,24 +33,32 @@ public partial class Velocity : Node
         in Vector3 direction,
         float acceleration,
         float angularAcceleration,
-        float maxSpeed = -1,
-        float maxAngularSpeed = -1)
+        float maxSpeed = float.MaxValue,
+        float maxAngularSpeed = float.MaxValue)
     {
         this._direction = direction.Normalized();
+        this._maxSpeed = maxSpeed;
         this._acceleration = acceleration;
+
         this._rotationDirection = this._direction;
+        this._maxAngularSpeed = Mathf.DegToRad(maxAngularSpeed);
         this._angularAcceleration = Mathf.DegToRad(angularAcceleration);
-        this.MaxSpeed = maxSpeed >= 0 ? maxSpeed : this.MaxSpeed;
-        this.MaxAngularSpeed = maxAngularSpeed >= 0 ? maxAngularSpeed : this.MaxAngularSpeed;
     }
 
     /// <summary>
     /// Applies a deceleration impulse this physics frame, reducing speed toward zero and rotating the owner toward <paramref name="lookAtDirection"/>.
     /// </summary>
-    public void Decelerate(float deceleration, in Vector3 lookAtDirection, float angularAcceleration)
+    public void Decelerate(
+        float deceleration,
+        in Vector3 lookAtDirection,
+        float angularAcceleration,
+        float maxAngularSpeed = float.MaxValue)
     {
+        this._maxSpeed = float.MaxValue;
         this._acceleration = -deceleration;
+
         this._rotationDirection = lookAtDirection.Normalized();
+        this._maxAngularSpeed = Mathf.DegToRad(maxAngularSpeed);
         this._angularAcceleration = Mathf.DegToRad(angularAcceleration);
     }
 
@@ -74,9 +72,11 @@ public partial class Velocity : Node
         this._gravityAcceleration = (float)ProjectSettings.GetSetting("physics/3d/default_gravity");
         this._direction = Vector3.Zero;
         this._speed = 0f;
+        this._maxSpeed = 0f;
         this._acceleration = 0f;
         this._rotationDirection = this._owner.GlobalBasis.Z;
         this._angularSpeed = 0f;
+        this._maxAngularSpeed = 0f;
         this._angularAcceleration = 0f;
     }
 
@@ -92,7 +92,7 @@ public partial class Velocity : Node
     private void HandleTranslation(float delta)
     {
         this._speed += this._acceleration * delta;
-        this._speed = Mathf.Clamp(this._speed, 0f, this.MaxSpeed);
+        this._speed = Mathf.Clamp(this._speed, 0f, this._maxSpeed);
         this._acceleration = 0f;
 
         if (this._owner == null)
@@ -109,7 +109,7 @@ public partial class Velocity : Node
     private void HandleRotation(float delta)
     {
         this._angularSpeed += this._angularAcceleration * delta;
-        this._angularSpeed = Mathf.Clamp(this._angularSpeed, 0f, Mathf.DegToRad(this.MaxAngularSpeed));
+        this._angularSpeed = Mathf.Clamp(this._angularSpeed, 0f, this._maxAngularSpeed);
         this._angularAcceleration = 0f;
 
         if (this._rotationDirection.IsZeroApprox())
@@ -178,9 +178,11 @@ public partial class Velocity : Node
     {
         this._direction = Vector3.Zero;
         this._speed = 0f;
+        this._maxSpeed = 0f;
         this._acceleration = 0f;
         this._rotationDirection = Vector3.Zero;
         this._angularSpeed = 0f;
+        this._maxAngularSpeed = 0f;
         this._angularAcceleration = 0f;
         this._gravitySpeed = 0f;
         this._gravityAcceleration = 0f;
