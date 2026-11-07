@@ -74,6 +74,17 @@ A pooled finite state machine implemented as a `Node`. It:
 - `State` — abstract base `Node` for FSM states. Override `_ReadyToTransition()` to block non-forced transitions. Sets `Owner` on enter and clears it on exit.
 - `State<TStateParams>` — generic subclass that stores a typed `StateParams` struct, automatically copied on each transition via `_CopyStateParams`.
 
+## Systems
+
+### TimeSystem
+
+A `[Tool]` `Node` that maintains an in-game clock and advances it every `_Process` frame. It provides:
+
+- `Value` — the current time in seconds from midnight (0–86399), wrapping automatically at the day boundary.
+- `Scale` — a multiplier controlling how fast in-game time passes relative to real time (e.g. `3600` = one real second equals one in-game hour).
+- `ValueChanged` — event raised every frame with the new time value after it changes.
+- `ForwardToTime(hours, minutes, speed)` — fast-forwards the clock to a specific time of day at a custom speed, then resumes normal flow.
+
 ## Utilities
 
 ### ElementsPool
