@@ -13,79 +13,86 @@ public partial class DayNightSystem : Node
     /// <summary>
     /// // TODO: document this.
     /// </summary>
+    [ExportGroup("Sunrise", "Sunrise")]
+    [Export(PropertyHint.Range, "0,86399,1,suffix:s")]
+    public float SunriseAt { get; private set; } = 17280f;
+
+    /// <summary>
+    /// // TODO: document this.
+    /// </summary>
+    [ExportGroup("Sunrise", "Sunrise")]
     [Export]
-    public float SunriseAt { get; private set; }
+    public Color SunriseSkyColor { get; private set; } = new Color(0.9f, 0.6f, 0.4f);
 
     /// <summary>
     /// // TODO: document this.
     /// </summary>
-    public float DayAt { get; private set; }
-
-    /// <summary>
-    /// // TODO: document this.
-    /// </summary>
-    public float SunsetAt { get; private set; }
-
-    /// <summary>
-    /// // TODO: document this.
-    /// </summary>
-    public float NightAt { get; private set; }
-
-    /// <summary>
-    /// // TODO: document this.
-    /// </summary>
-    [ExportGroup("Sky", "Sky")]
+    [ExportGroup("Sunrise", "Sunrise")]
     [Export]
-    public Color SkySunriseColor { get; private set; }
+    public Color SunriseSunColor { get; private set; } = new Color(1f, 0.8f, 0.6f);
 
     /// <summary>
     /// // TODO: document this.
     /// </summary>
-    [ExportGroup("Sky", "Sky")]
-    [Export]
-    public Color SkyDayColor { get; private set; }
+    [ExportGroup("Day", "Day")]
+    [Export(PropertyHint.Range, "0,86399,1,suffix:s")]
+    public float DayAt { get; private set; } = 25920f;
 
     /// <summary>
     /// // TODO: document this.
     /// </summary>
-    [ExportGroup("Sky", "Sky")]
+    [ExportGroup("Day", "Day")]
     [Export]
-    public Color SkySunsetColor { get; private set; }
+    public Color DaySkyColor { get; private set; } = new Color(0.55f, 0.75f, 0.95f);
 
     /// <summary>
     /// // TODO: document this.
     /// </summary>
-    [ExportGroup("Sky", "Sky")]
+    [ExportGroup("Day", "Day")]
     [Export]
-    public Color SkyNightColor { get; private set; }
+    public Color DaySunColor { get; private set; } = new Color(1f, 0.98f, 0.9f);
 
     /// <summary>
     /// // TODO: document this.
     /// </summary>
-    [ExportGroup("Sun", "Sun")]
-    [Export]
-    public Color SunSunriseColor { get; private set; }
+    [ExportGroup("Sunset", "Sunset")]
+    [Export(PropertyHint.Range, "0,86399,1,suffix:s")]
+    public float SunsetAt { get; private set; } = 60479f;
 
     /// <summary>
     /// // TODO: document this.
     /// </summary>
-    [ExportGroup("Sun", "Sun")]
+    [ExportGroup("Sunset", "Sunset")]
     [Export]
-    public Color SunDayColor { get; private set; }
+    public Color SunsetSkyColor { get; private set; } = new Color(0.95f, 0.45f, 0.2f);
 
     /// <summary>
     /// // TODO: document this.
     /// </summary>
-    [ExportGroup("Sun", "Sun")]
+    [ExportGroup("Sunset", "Sunset")]
     [Export]
-    public Color SunSunsetColor { get; private set; }
+    public Color SunsetSunColor { get; private set; } = new Color(1f, 0.6f, 0.3f);
 
     /// <summary>
     /// // TODO: document this.
     /// </summary>
-    [ExportGroup("Sun", "Sun")]
+    [ExportGroup("Night", "Night")]
+    [Export(PropertyHint.Range, "0,86399,1,suffix:s")]
+    public float NightAt { get; private set; } = 69119f;
+
+    /// <summary>
+    /// // TODO: document this.
+    /// </summary>
+    [ExportGroup("Night", "Night")]
     [Export]
-    public Color SunNightColor { get; private set; }
+    public Color NightSkyColor { get; private set; } = new Color(0.05f, 0.05f, 0.15f);
+
+    /// <summary>
+    /// // TODO: document this.
+    /// </summary>
+    [ExportGroup("Night", "Night")]
+    [Export]
+    public Color NightMoonColor { get; private set; } = new Color(0.2f, 0.3f, 0.5f);
 
     private TimeSystem? _timeSystem;
     private DirectionalLight3D? _directionalLight;
@@ -156,23 +163,23 @@ public partial class DayNightSystem : Node
             if (normalizedTime >= normalizedSunriseAt && normalizedTime <= normalizedDayAt)
             {
                 var t = (normalizedTime - normalizedSunriseAt) / 0.1f;
-                this._directionalLight.LightColor = this.SunSunriseColor.Lerp(this.SunDayColor, t);
+                this._directionalLight.LightColor = this.SunriseSunColor.Lerp(this.DaySunColor, t);
                 this._directionalLight.LightEnergy = Mathf.Lerp(0.3f, 1.5f, t);
             }
             else if (normalizedTime > normalizedDayAt && normalizedTime < normalizedSunsetAt)
             {
-                this._directionalLight.LightColor = this.SunDayColor;
+                this._directionalLight.LightColor = this.DaySunColor;
                 this._directionalLight.LightEnergy = 1.5f;
             }
             else if (normalizedTime >= normalizedSunsetAt && normalizedTime <= normalizedNightAt)
             {
                 var t = (normalizedTime - normalizedSunsetAt) / 0.1f;
-                this._directionalLight.LightColor = this.SunDayColor.Lerp(this.SunSunsetColor, t);
+                this._directionalLight.LightColor = this.DaySunColor.Lerp(this.SunsetSunColor, t);
                 this._directionalLight.LightEnergy = Mathf.Lerp(1.5f, 0.3f, t);
             }
             else
             {
-                this._directionalLight.LightColor = this.SunNightColor;
+                this._directionalLight.LightColor = this.NightMoonColor;
                 this._directionalLight.LightEnergy = 0.3f;
             }
         }
@@ -180,13 +187,13 @@ public partial class DayNightSystem : Node
         if (this._worldEnvironment?.Environment.Sky.SkyMaterial is ProceduralSkyMaterial proceduralSkyMaterial)
         {
             if (normalizedTime >= normalizedSunriseAt && normalizedTime <= normalizedDayAt)
-                proceduralSkyMaterial.SkyHorizonColor = this.SkySunriseColor.Lerp(this.SkyDayColor, (normalizedTime - normalizedSunriseAt) / 0.1f);
+                proceduralSkyMaterial.SkyHorizonColor = this.SunriseSkyColor.Lerp(this.DaySkyColor, (normalizedTime - normalizedSunriseAt) / 0.1f);
             else if (normalizedTime > normalizedDayAt && normalizedTime < normalizedSunsetAt)
-                proceduralSkyMaterial.SkyHorizonColor = this.SkyDayColor;
+                proceduralSkyMaterial.SkyHorizonColor = this.DaySkyColor;
             else if (normalizedTime >= normalizedSunsetAt && normalizedTime <= normalizedNightAt)
-                proceduralSkyMaterial.SkyHorizonColor = this.SkyDayColor.Lerp(this.SkySunsetColor, (normalizedTime - normalizedSunsetAt) / 0.1f);
+                proceduralSkyMaterial.SkyHorizonColor = this.DaySkyColor.Lerp(this.SunsetSkyColor, (normalizedTime - normalizedSunsetAt) / 0.1f);
             else
-                proceduralSkyMaterial.SkyHorizonColor = this.SkyNightColor;
+                proceduralSkyMaterial.SkyHorizonColor = this.NightSkyColor;
 
             proceduralSkyMaterial.GroundHorizonColor = proceduralSkyMaterial.SkyHorizonColor;
         }
