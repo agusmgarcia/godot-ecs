@@ -85,6 +85,10 @@ A `[Tool]` `Node` that maintains an in-game clock and advances it every `_Proces
 - `ValueChanged` — event raised every frame with the new time value after it changes.
 - `ForwardToTime(hours, minutes, speed)` — fast-forwards the clock to a specific time of day at a custom speed, then resumes normal flow.
 
+### DayNightSystem
+
+A `[Tool]` `Node` that drives a sibling `DirectionalLight3D` and `WorldEnvironment`'s `ProceduralSkyMaterial` through four configurable time-of-day phases, reacting to a sibling `TimeSystem`'s `ValueChanged` event. Each phase (Sunrise, Day, Sunset, Night) exposes inspector-editable properties for the transition start time, sky horizon colour, sun/moon light colour, and light energy. Transitions between phases use a skewed lerp for a more natural-looking sky progression.
+
 ## Utilities
 
 ### ElementsPool
