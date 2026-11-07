@@ -46,7 +46,8 @@ public static class NodeExtensions
     )
         where TNode : Node
     {
-        if (self.IsInsideTree())
+        // TODO: investigate why self.IsInsideTree() is true when IsEditorHint() is true.
+        if (!Engine.IsEditorHint() && self.IsInsideTree())
             throw new InvalidOperationException($"The node '{self.Name}' shouldn't been inside the three when tracking nodes");
 
         var processedNodes = new HashSet<Node>();
