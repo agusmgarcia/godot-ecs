@@ -117,7 +117,11 @@ public partial class DayNightSystem : Node
         if (this._directionalLight != null)
         {
             var rotation = this._directionalLight.RotationDegrees;
-            rotation.X = (normalizedTime * 360.0f) - 270.0f;
+            rotation.X = (normalizedTime >= 0 && normalizedTime < 0.2f)
+                ? normalizedTime * 540.0f - 90.0f
+                : (normalizedTime >= 0.2f && normalizedTime <= 0.8f)
+                    ? normalizedTime * 360.0f - 270.0f
+                    : normalizedTime * 540 - 630;
             this._directionalLight.RotationDegrees = rotation;
 
             if (normalizedTime >= 0.2f && normalizedTime <= 0.3f)
