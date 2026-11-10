@@ -106,7 +106,7 @@ public partial class ModelHandler : Node3D
     }
 
     /// <summary>
-    /// Gets the model type from the model passed by args.
+    /// Returns the string key for the given model node; defaults to the node name with the "Model" suffix stripped.
     /// </summary>
     protected virtual string GetModelType(Node3D model) =>
         model.Name.ToString().Replace("Model", "");
