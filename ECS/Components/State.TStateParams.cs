@@ -12,6 +12,6 @@ public abstract partial class State<TStateParams> : State
     public TStateParams StateParams { get; private set; } = default;
 
     /// <inheritdoc/>
-    public sealed override void _CopyStateParams(ValueType stateParams) =>
+    internal sealed override void _CopyStateParams(ValueType stateParams) =>
         this.StateParams = (TStateParams)stateParams;
 }
