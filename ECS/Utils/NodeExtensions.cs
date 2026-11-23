@@ -144,7 +144,7 @@ public static class NodeExtensions
         self.TreeExiting += OnTreeExiting;
     }
 
-    private static readonly Godot.Collections.Array<Rid> INTERSECT_RAY_PARAMS_EXCLUDE = [];
+    private static readonly Godot.Collections.Array<Rid> _INTERSECT_RAY_PARAMS_EXCLUDE = [];
 
     /// <summary>
     /// Casts a ray from <paramref name="self"/>'s global position to <paramref name="to"/> and returns the first physics hit, or <c>null</c> if nothing was hit.
@@ -156,20 +156,20 @@ public static class NodeExtensions
         bool collideWithAreas = false,
         params IReadOnlyCollection<Node3D> excludeList)
     {
-        NodeExtensions.INTERSECT_RAY_PARAMS_EXCLUDE.Clear();
+        NodeExtensions._INTERSECT_RAY_PARAMS_EXCLUDE.Clear();
 
         foreach (var exclude in excludeList)
             if (exclude is CollisionObject3D collisionObjectExclude)
-                NodeExtensions.INTERSECT_RAY_PARAMS_EXCLUDE.Add(collisionObjectExclude.GetRid());
+                NodeExtensions._INTERSECT_RAY_PARAMS_EXCLUDE.Add(collisionObjectExclude.GetRid());
 
         if (self is CollisionObject3D collisionObjectFrom)
-            NodeExtensions.INTERSECT_RAY_PARAMS_EXCLUDE.Add(collisionObjectFrom.GetRid());
+            NodeExtensions._INTERSECT_RAY_PARAMS_EXCLUDE.Add(collisionObjectFrom.GetRid());
 
         var raycast = PhysicsRayQueryParameters3D.Create(
             self.GlobalPosition,
             to,
             collisionMask,
-            NodeExtensions.INTERSECT_RAY_PARAMS_EXCLUDE);
+            NodeExtensions._INTERSECT_RAY_PARAMS_EXCLUDE);
 
         raycast.CollideWithAreas = collideWithAreas;
 
