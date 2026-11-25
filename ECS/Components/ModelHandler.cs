@@ -102,7 +102,9 @@ public partial class ModelHandler : Node3D
     {
         var modelType = this.GetModelType(model);
         this._models.Add(modelType, model);
-        this.ModelType = modelType;
+
+        if (this.ModelType == modelType)
+            this.ModelType = modelType;
     }
 
     /// <summary>
@@ -120,8 +122,10 @@ public partial class ModelHandler : Node3D
     private void OnModelUntracked(Node3D model)
     {
         var modelType = this.GetModelType(model);
-        this.ModelType = string.Empty;
         this._models.Remove(modelType);
+
+        if (this.ModelType == modelType)
+            this.ModelType = modelType;
     }
 
     private void OnHeightUntracked(Height height)
